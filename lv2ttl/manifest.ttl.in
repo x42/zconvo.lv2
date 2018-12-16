@@ -1,0 +1,30 @@
+@prefix atom: <http://lv2plug.in/ns/ext/atom#> .
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#>.
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+@prefix zcpset: <http://gareus.org/oss/lv2/@LV2NAME@/pset#> .
+
+<http://gareus.org/oss/lv2/@LV2NAME@#Mono>
+	a lv2:Plugin;
+	lv2:binary <@LV2NAME@@LIB_EXT@>;
+	rdfs:seeAlso <@LV2NAME@.ttl>.
+
+<http://gareus.org/oss/lv2/@LV2NAME@#Stereo>
+	a lv2:Plugin;
+	lv2:binary <@LV2NAME@@LIB_EXT@>;
+	rdfs:seeAlso <@LV2NAME@.ttl>.
+
+<http://gareus.org/oss/lv2/@LV2NAME@#MonoToStereo>
+	a lv2:Plugin;
+	lv2:binary <@LV2NAME@@LIB_EXT@>;
+	rdfs:seeAlso <@LV2NAME@.ttl>.
+
+<http://gareus.org/oss/lv2/@LV2NAME@#predelay>
+	a lv2:Parameter;
+	rdfs:label "Predelay";
+	rdfs:range atom:Int.
+
+<http://gareus.org/oss/lv2/@LV2NAME@#ir>
+	a lv2:Parameter;
+	rdfs:label "Impulse Response";
+	rdfs:range atom:Path.

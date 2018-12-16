@@ -1,0 +1,9 @@
+zcpset:noopStereo
+	a pset:Preset;
+	lv2:appliesTo <http://gareus.org/oss/lv2/@LV2NAME@#Stereo>;
+
+	rdfs:label "No-OP Stereo";
+	state:state [
+		<http://gareus.org/oss/lv2/zeroconvolv#ir> <ir/delta-48k.wav>;
+		<http://gareus.org/oss/lv2/zeroconvolv#predelay> "0"^^xsd:int;
+	].
