@@ -389,7 +389,9 @@ save (LV2_Handle                instance,
 	} else if (self->clv_online) {
 		char* apath = map_path->abstract_path (map_path->handle, self->clv_online->path ().c_str ());
 		store (handle, self->zc_ir, apath, strlen (apath) + 1, self->atom_Path, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+#ifndef _WIN32 // https://github.com/drobilla/lilv/issues/14
 		free (apath);
+#endif
 	}
 	return LV2_STATE_SUCCESS;
 }
@@ -410,11 +412,17 @@ restore (LV2_Handle                  instance,
 	 * support), but fall back to instantiate() schedules (spec-violating
 	 * workaround for broken hosts). */
 	LV2_Worker_Schedule* schedule = self->schedule;
+	LV2_State_Map_Path* map_path = NULL;
 	for (int i = 0; features[i]; ++i) {
 		if (!strcmp (features[i]->URI, LV2_WORKER__schedule)) {
 			lv2_log_note (&self->logger, "ZConvolv State: using thread-safe restore scheduler\n");
 			schedule = (LV2_Worker_Schedule*)features[i]->data;
+		} else if (!strcmp (features[i]->URI, LV2_STATE__mapPath)) {
+			map_path = (LV2_State_Map_Path*)features[i]->data;
 		}
+	}
+	if (!map_path) {
+		return LV2_STATE_ERR_NO_FEATURE;
 	}
 	if (schedule == self->schedule) {
 		lv2_log_warning (&self->logger, "ZConvolv State: using run() scheduler to restore\n");
@@ -438,7 +446,7 @@ restore (LV2_Handle                  instance,
 	value = retrieve (handle, self->zc_ir, &size, &type, &valflags);
 
 	if (value) {
-		const char* path = (const char*)value;
+		char* path = map_path->absolute_path (map_path->handle, (const char*)value);
 		lv2_log_note (&self->logger, "ZConvolv State: ir=%s\n", path);
 		try {
 			self->clv_offline = new ZeroConvoLV2::Convolver (path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg, predelay);
@@ -447,6 +455,9 @@ restore (LV2_Handle                  instance,
 		} catch (std::runtime_error& err) {
 			lv2_log_warning (&self->logger, "ZConvolv Convolver: %s.\n", err.what ());
 		}
+#ifndef _WIN32 // https://github.com/drobilla/lilv/issues/14
+		free (path);
+#endif
 	}
 
 	if (!ok) {
