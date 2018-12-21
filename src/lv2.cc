@@ -35,8 +35,11 @@
 
 #define ZC_PREFIX "http://gareus.org/oss/lv2/zeroconvolv#"
 
-#define ZC_ir       ZC_PREFIX "ir"
-#define ZC_predelay ZC_PREFIX "predelay"
+#define ZC_ir        ZC_PREFIX "ir"
+#define ZC_gain      ZC_PREFIX "gain"
+#define ZC_predelay  ZC_PREFIX "predelay"
+#define ZC_chn_gain  ZC_PREFIX "channel_gain"
+#define ZC_chn_delay ZC_PREFIX "channel_predelay"
 
 #ifndef LV2_BUF_SIZE__nominalBlockLength
 # define LV2_BUF_SIZE__nominalBlockLength "http://lv2plug.in/ns/ext/buf-size#nominalBlockLength"
@@ -61,7 +64,12 @@ typedef struct {
 	LV2_URID atom_String;
 	LV2_URID atom_Path;
 	LV2_URID atom_Int;
+	LV2_URID atom_Float;
+	LV2_URID atom_Vector;
+	LV2_URID zc_chn_delay;
 	LV2_URID zc_predelay;
+	LV2_URID zc_chn_gain;
+	LV2_URID zc_gain;
 	LV2_URID zc_ir;
 	LV2_URID bufsz_len;
 
@@ -78,6 +86,17 @@ typedef struct {
 	int      rt_policy;
 	int      rt_priority;
 } zeroConvolv;
+
+
+typedef	struct {
+	uint32_t child_size;
+	uint32_t child_type;
+	union {
+		float    f[4];
+		uint32_t i[4];
+	};
+} stateVector;
+
 
 static LV2_Handle
 instantiate (const LV2_Descriptor*     descriptor,
@@ -221,12 +240,17 @@ instantiate (const LV2_Descriptor*     descriptor,
 	self->clv_online  = NULL;
 	self->clv_offline = NULL;
 
-	self->atom_String = map->map (map->handle, LV2_ATOM__String);
-	self->atom_Path   = map->map (map->handle, LV2_ATOM__Path);
-	self->atom_Int    = map->map (map->handle, LV2_ATOM__Int);
-	self->zc_predelay = map->map (map->handle, ZC_predelay);
-	self->zc_ir       = map->map (map->handle, ZC_ir);
-	self->bufsz_len   = map->map (map->handle, LV2_BUF_SIZE__nominalBlockLength);
+	self->atom_String  = map->map (map->handle, LV2_ATOM__String);
+	self->atom_Path    = map->map (map->handle, LV2_ATOM__Path);
+	self->atom_Int     = map->map (map->handle, LV2_ATOM__Int);
+	self->atom_Float   = map->map (map->handle, LV2_ATOM__Float);
+	self->atom_Vector  = map->map (map->handle, LV2_ATOM__Vector);
+	self->zc_chn_delay = map->map (map->handle, ZC_chn_delay);
+	self->zc_predelay  = map->map (map->handle, ZC_predelay);
+	self->zc_chn_gain  = map->map (map->handle, ZC_chn_gain);
+	self->zc_gain      = map->map (map->handle, ZC_gain);
+	self->zc_ir        = map->map (map->handle, ZC_ir);
+	self->bufsz_len    = map->map (map->handle, LV2_BUF_SIZE__nominalBlockLength);
 
 	return (LV2_Handle)self;
 }
@@ -367,6 +391,7 @@ work (LV2_Handle                  instance,
 	return LV2_WORKER_SUCCESS;
 }
 
+
 static LV2_State_Status
 save (LV2_Handle                instance,
       LV2_State_Store_Function  store,
@@ -386,13 +411,40 @@ save (LV2_Handle                instance,
 
 	if (!map_path) {
 		return LV2_STATE_ERR_NO_FEATURE;
-	} else if (self->clv_online) {
-		char* apath = map_path->abstract_path (map_path->handle, self->clv_online->path ().c_str ());
-		store (handle, self->zc_ir, apath, strlen (apath) + 1, self->atom_Path, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
-#ifndef _WIN32 // https://github.com/drobilla/lilv/issues/14
-		free (apath);
-#endif
 	}
+	if (!self->clv_online) {
+		/* no state to save */
+		return LV2_STATE_SUCCESS;
+	}
+
+	char* apath = map_path->abstract_path (map_path->handle, self->clv_online->path ().c_str ());
+	store (handle, self->zc_ir, apath, strlen (apath) + 1, self->atom_Path, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+#ifndef _WIN32 // https://github.com/drobilla/lilv/issues/14
+	free (apath);
+#endif
+
+	ZeroConvoLV2::Convolver::IRSettings const& irs (self->clv_online->settings ());
+
+	store (handle, self->zc_gain, &irs.gain, sizeof(float), self->atom_Float,
+			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
+	store (handle, self->zc_predelay, &irs.pre_delay, sizeof(uint32_t), self->atom_Int,
+			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
+	stateVector sv;
+
+	sv.child_type = self->atom_Float;
+	sv.child_size = sizeof(float);
+	memcpy (sv.f, irs.channel_gain, sizeof(irs.channel_gain));
+	store (handle, self->zc_chn_gain, (void*)&sv, sizeof(sv),
+			self->atom_Vector, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
+	sv.child_type = self->atom_Int;
+	sv.child_size = sizeof(uint32_t);
+	memcpy (sv.i, irs.channel_delay, sizeof(irs.channel_delay));
+	store (handle, self->zc_chn_delay, (void*)&sv, sizeof(sv),
+			self->atom_Vector, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
 	return LV2_STATE_SUCCESS;
 }
 
@@ -433,14 +485,28 @@ restore (LV2_Handle                  instance,
 		return LV2_STATE_ERR_UNKNOWN;
 	}
 
-	bool        ok       = false;
-	uint32_t    predelay = 0;
+	bool ok = false;
 	const void* value;
+	ZeroConvoLV2::Convolver::IRSettings irs;
 
 	value = retrieve (handle, self->zc_predelay, &size, &type, &valflags);
 	if (value && size == sizeof (int32_t) && type == self->atom_Int) {
-		predelay = *((int32_t*)value);
-		lv2_log_note (&self->logger, "ZConvolv State: predelay=%d\n", predelay);
+		irs.pre_delay = *((int32_t*)value);
+	}
+
+	value = retrieve (handle, self->zc_gain, &size, &type, &valflags);
+	if (value && size == sizeof (int32_t) && type == self->atom_Float) {
+		irs.gain = *((float*)value);
+	}
+
+	value = retrieve(handle, self->zc_chn_delay, &size, &type, &valflags);
+	if (value && size == sizeof(irs.channel_delay) && type == self->atom_Vector) {
+		memcpy (irs.channel_delay, LV2_ATOM_BODY(value), sizeof(irs.channel_delay));
+	}
+
+	value = retrieve(handle, self->zc_chn_gain, &size, &type, &valflags);
+	if (value && size == sizeof(irs.channel_gain) && type == self->atom_Vector) {
+		memcpy (irs.channel_gain, LV2_ATOM_BODY(value), sizeof(irs.channel_gain));
 	}
 
 	value = retrieve (handle, self->zc_ir, &size, &type, &valflags);
@@ -449,7 +515,7 @@ restore (LV2_Handle                  instance,
 		char* path = map_path->absolute_path (map_path->handle, (const char*)value);
 		lv2_log_note (&self->logger, "ZConvolv State: ir=%s\n", path);
 		try {
-			self->clv_offline = new ZeroConvoLV2::Convolver (path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg, predelay);
+			self->clv_offline = new ZeroConvoLV2::Convolver (path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg, irs);
 			self->clv_offline->reconfigure (self->block_size);
 			ok = self->clv_offline->ready ();
 		} catch (std::runtime_error& err) {

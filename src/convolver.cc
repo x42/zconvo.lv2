@@ -17,6 +17,7 @@
  */
 
 #include <assert.h>
+#include <math.h>
 #include <string.h>
 
 #include "audiosrc.h"
@@ -34,16 +35,16 @@ Convolver::Convolver (
 		int sched_policy,
 		int sched_priority,
 		IRChannelConfig irc,
-		uint32_t pre_delay)
-  : _path (path)
+		IRSettings irs)
+	: _path (path)
 	, _irc (irc)
-  , _initial_delay (pre_delay)
-  , _sched_policy (sched_policy)
-  , _sched_priority (sched_priority)
-  , _n_samples (0)
-  , _max_size (0)
-  , _offset (0)
-  , _configured (false)
+	, _sched_policy (sched_policy)
+	, _sched_priority (sched_priority)
+	, _ir_settings (irs)
+	, _n_samples (0)
+	, _max_size (0)
+	, _offset (0)
+	, _configured (false)
 {
 #if 0 // Test Signal
 	_fs = new MemSource ();
@@ -154,6 +155,8 @@ Convolver::reconfigure (uint32_t block_size)
 		n_imp = 2;
 	}
 
+	assert (n_imp <= 4);
+
 	for (uint32_t c = 0; c < n_imp && rv == 0; ++c) {
 		int ir_c = c % n_chn;
 		int io_o = c % n_outputs ();
@@ -173,13 +176,17 @@ Convolver::reconfigure (uint32_t block_size)
 			io_i = (c / n_outputs ()) % n_inputs ();
 		}
 
-#ifndef NDEBUG
-		printf ("Convolver map: IR-chn %d: in %d -> out %d\n", ir_c + 1, io_i + 1, io_o + 1);
-#endif
 
 		Readable* r = _readables[ir_c];
 		assert (r->readable_length () == _max_size);
 		assert (r->n_channels () == 1);
+
+		const float    chan_gain  = _ir_settings.gain * _ir_settings.channel_gain[c];
+		const uint32_t chan_delay = _ir_settings.pre_delay + _ir_settings.channel_delay[c];
+
+#ifndef NDEBUG
+		printf ("Convolver map: IR-chn %d: in %d -> out %d (gain: %.1fdB delay; %d)\n", ir_c + 1, io_i + 1, io_o + 1, 20.f * log10f(chan_gain), chan_delay);
+#endif
 
 		uint32_t pos = 0;
 		while (true) {
@@ -193,11 +200,17 @@ Convolver::reconfigure (uint32_t block_size)
 				break;
 			}
 
+			if (chan_gain != 1.f) {
+				for (uint64_t i = 0; i < ns; ++i) {
+					ir[i] *= chan_gain;
+				}
+			}
+
 			rv = _convproc.impdata_create (
 			    /*i/o map */ io_i, io_o,
 			    /*stride, de-interleave */ 1,
 			    ir,
-			    _initial_delay + pos, _initial_delay + pos + ns);
+			    chan_delay + pos, chan_delay + pos + ns);
 
 			if (rv != 0) {
 				break;

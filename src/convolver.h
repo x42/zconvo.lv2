@@ -35,12 +35,26 @@ public:
 		Stereo,       ///< 2 in, 2 out, stereo IR  L -> L, R -> R || 4 chan IR  L -> L, L -> R, R -> R, R -> L
 	};
 
+	struct IRSettings {
+		IRSettings () {
+			gain  = 1.0;
+			pre_delay = 0.0;
+			channel_gain[0] = channel_gain[1] = channel_gain[2] = channel_gain[3] = 1.0;
+			channel_delay[0] = channel_delay[1] = channel_delay[2] = channel_delay[3] = 0;
+		};
+
+		float    gain;
+		uint32_t pre_delay;
+		float    channel_gain[4];
+		uint32_t channel_delay[4];
+	};
+
 	Convolver (std::string const&,
 			uint32_t sample_rate,
 			int sched_policy,
 			int sched_priority,
 			IRChannelConfig irc = Mono,
-			uint32_t pre_delay = 0);
+			IRSettings irs = IRSettings ());
 	~Convolver ();
 
 	void run (float*, uint32_t);
@@ -54,6 +68,7 @@ public:
 	uint32_t n_outputs () const { return _irc == Mono  ? 1 : 2; }
 
 	std::string const& path () const { return _path; }
+	IRSettings const&  settings () const { return _ir_settings; }
 
 	bool ready () const;
 
@@ -64,9 +79,9 @@ private:
 
 	std::string     _path;
 	IRChannelConfig _irc;
-	uint32_t        _initial_delay;
 	int             _sched_policy;
 	int             _sched_priority;
+	IRSettings      _ir_settings;
 
 
 	uint32_t _n_samples;

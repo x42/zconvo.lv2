@@ -6,4 +6,25 @@ zcpset:noopStereo
 	state:state [
 		<http://gareus.org/oss/lv2/zeroconvolv#ir> <ir/delta-48k.wav>;
 		<http://gareus.org/oss/lv2/zeroconvolv#predelay> "0"^^xsd:int;
+		<http://gareus.org/oss/lv2/zeroconvolv#gain> "1.0"^^xsd:float;
+		<http://gareus.org/oss/lv2/zeroconvolv#channel_predelay> [
+			a atom:Vector;
+			atom:childType atom:Int;
+			rdf:value (
+				"0"^^xsd:int
+				"0"^^xsd:int
+				"0"^^xsd:int
+				"0"^^xsd:int
+			)
+		];
+		<http://gareus.org/oss/lv2/zeroconvolv#channel_gain> [
+			a atom:Vector;
+			atom:childType atom:Float;
+			rdf:value (
+				"1.0"^^xsd:float
+				"1.0"^^xsd:float
+				"1.0"^^xsd:float
+				"1.0"^^xsd:float
+			)
+		];
 	].
