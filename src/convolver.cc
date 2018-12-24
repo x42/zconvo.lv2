@@ -112,7 +112,7 @@ Convolver::reconfigure (uint32_t block_size)
 	int n_part = std::min ((uint32_t)Convproc::MAXPART, 4 * _n_samples);
 
 	int rv = _convproc.configure (
-	    /*in*/ n_inputs (),
+	    /*in*/  n_inputs (),
 	    /*out*/ n_outputs (),
 	    /*max-convolution length */ _max_size,
 	    /*quantum, nominal-buffersize*/ _n_samples,
@@ -295,7 +295,7 @@ Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
 		if (_irc >= Stereo) {
 			memcpy (&_convproc.inpdata (1)[_offset], &right[done], sizeof (float) * ns);
 		}
-		memcpy (&left[done], &_convproc.outdata (0)[_offset], sizeof (float) * ns);
+		memcpy (&left[done],  &_convproc.outdata (0)[_offset], sizeof (float) * ns);
 		memcpy (&right[done], &_convproc.outdata (1)[_offset], sizeof (float) * ns);
 
 		_offset += ns;
