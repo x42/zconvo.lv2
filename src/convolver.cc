@@ -162,7 +162,7 @@ Convolver::reconfigure (uint32_t block_size)
 		int io_o = c % n_outputs ();
 		int io_i;
 
-		if (n_imp == 2 && n_imp == 2 && _irc == Stereo) {
+		if (n_imp == 2 && _irc == Stereo) {
 			/*           (imp, in, out)
 			 * Stereo       (2, 2, 2)    1: L -> L, 2: R -> R
 			 */
