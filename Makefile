@@ -64,6 +64,11 @@ ifneq ($(shell pkg-config --exists sndfile samplerate && echo yes), yes)
   $(error "libsndfile and libsamplerate are required")
 endif
 
+ifeq ($(STATICZITA), yes)
+ CPPFLAGS+=-Izita/
+ LIBZITACONVOLVER=zita/zita-convolver.cc
+ LOADLIBES="-lfftw3f"
+endif
 ifeq ($(LIBZITACONVOLVER),)
   ifeq ($(shell test -f /usr/include/zita-convolver.h -o -f /usr/local/include/zita-convolver.h || echo no ), no)
     $(error "libzita-convolver3 or 4, is required")
