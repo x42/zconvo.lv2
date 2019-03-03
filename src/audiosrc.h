@@ -35,7 +35,7 @@ public:
 
 	uint64_t read (float*, uint64_t pos, uint64_t cnt, uint32_t channel) const;
 
-	uint64_t readable_length () const { return _source->readable_length () * _ratio; }
+	uint64_t readable_length () const { return ceil (_source->readable_length () * _ratio) - 1; }
 	uint32_t n_channels () const { return _source->n_channels (); }
 	uint32_t sample_rate () const { return _target_rate; }
 
