@@ -40,6 +40,7 @@
 #define ZC_predelay  ZC_PREFIX "predelay"
 #define ZC_chn_gain  ZC_PREFIX "channel_gain"
 #define ZC_chn_delay ZC_PREFIX "channel_predelay"
+#define ZC_sum_ins   ZC_PREFIX "sum_inputs"
 
 #ifndef LV2_BUF_SIZE__nominalBlockLength
 # define LV2_BUF_SIZE__nominalBlockLength "http://lv2plug.in/ns/ext/buf-size#nominalBlockLength"
@@ -65,11 +66,13 @@ typedef struct {
 	LV2_URID atom_Path;
 	LV2_URID atom_Int;
 	LV2_URID atom_Float;
+	LV2_URID atom_Bool;
 	LV2_URID atom_Vector;
 	LV2_URID zc_chn_delay;
 	LV2_URID zc_predelay;
 	LV2_URID zc_chn_gain;
 	LV2_URID zc_gain;
+	LV2_URID zc_sum_ins;
 	LV2_URID zc_ir;
 	LV2_URID bufsz_len;
 
@@ -244,11 +247,13 @@ instantiate (const LV2_Descriptor*     descriptor,
 	self->atom_Path    = map->map (map->handle, LV2_ATOM__Path);
 	self->atom_Int     = map->map (map->handle, LV2_ATOM__Int);
 	self->atom_Float   = map->map (map->handle, LV2_ATOM__Float);
+	self->atom_Bool    = map->map (map->handle, LV2_ATOM__Bool);
 	self->atom_Vector  = map->map (map->handle, LV2_ATOM__Vector);
 	self->zc_chn_delay = map->map (map->handle, ZC_chn_delay);
 	self->zc_predelay  = map->map (map->handle, ZC_predelay);
 	self->zc_chn_gain  = map->map (map->handle, ZC_chn_gain);
 	self->zc_gain      = map->map (map->handle, ZC_gain);
+	self->zc_sum_ins   = map->map (map->handle, ZC_sum_ins);
 	self->zc_ir        = map->map (map->handle, ZC_ir);
 	self->bufsz_len    = map->map (map->handle, LV2_BUF_SIZE__nominalBlockLength);
 
@@ -321,7 +326,15 @@ run (LV2_Handle instance, uint32_t n_samples)
 
 	if (self->chn_in == 2) {
 		assert (self->chn_out == 2);
-		copy_no_inplace_buffers (self->output[1], self->input[1], n_samples);
+		if (self->clv_online->sum_inputs ()) {
+			/* fake stereo, sum inputs to mono */
+			for (uint32_t i = 0; i < n_samples; ++i) {
+				self->output[0][i] = 0.5 * (self->output[0][i] + self->input[1][i]);
+			}
+			memcpy (self->output[1], self->output[0], sizeof (float) * n_samples);
+		} else {
+			copy_no_inplace_buffers (self->output[1], self->input[1], n_samples);
+		}
 		self->clv_online->run_stereo (self->output[0], self->output[1], n_samples);
 	} else if (self->chn_out == 2) {
 		assert (self->chn_in == 1);
@@ -433,6 +446,10 @@ save (LV2_Handle                instance,
 	store (handle, self->zc_predelay, &irs.pre_delay, sizeof(uint32_t), self->atom_Int,
 			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
+	int32_t lv2bool = irs.sum_inputs ? 1 : 0;
+	store (handle, self->zc_sum_ins, &lv2bool, sizeof(int32_t), self->atom_Bool,
+			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
 	stateVector sv;
 
 	sv.child_type = self->atom_Float;
@@ -504,6 +521,11 @@ restore (LV2_Handle                  instance,
 	value = retrieve(handle, self->zc_chn_delay, &size, &type, &valflags);
 	if (value && size == sizeof(irs.channel_delay) && type == self->atom_Vector) {
 		memcpy (irs.channel_delay, LV2_ATOM_BODY(value), sizeof(irs.channel_delay));
+	}
+
+	value = retrieve (handle, self->zc_sum_ins, &size, &type, &valflags);
+	if (value && size == sizeof (int32_t) && type == self->atom_Bool) {
+		irs.sum_inputs = *((int32_t*)value) ? true : false;
 	}
 
 	value = retrieve(handle, self->zc_chn_gain, &size, &type, &valflags);

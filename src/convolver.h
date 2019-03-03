@@ -41,12 +41,14 @@ public:
 			pre_delay = 0.0;
 			channel_gain[0] = channel_gain[1] = channel_gain[2] = channel_gain[3] = 1.0;
 			channel_delay[0] = channel_delay[1] = channel_delay[2] = channel_delay[3] = 0;
+			sum_inputs = false;
 		};
 
 		float    gain;
 		uint32_t pre_delay;
 		float    channel_gain[4];
 		uint32_t channel_delay[4];
+		bool     sum_inputs;
 	};
 
 	Convolver (std::string const&,
@@ -69,6 +71,7 @@ public:
 
 	std::string const& path () const { return _path; }
 	IRSettings const&  settings () const { return _ir_settings; }
+	bool sum_inputs () const { return _ir_settings.sum_inputs; }
 
 	bool ready () const;
 
