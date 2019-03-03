@@ -142,10 +142,6 @@ Convolver::reconfigure (uint32_t block_size)
 	uint32_t n_imp = n_inputs () * n_outputs ();
 	uint32_t n_chn = _readables.size ();
 
-#ifndef NDEBUG
-	printf ("Convolver::reconfigure Nin %d Nout %d Nimp %d Nchn %d\n", n_inputs (), n_outputs (), n_imp, n_chn);
-#endif
-
 	if (_irc == Stereo && n_chn == 3) {
 		/* ignore 3rd channel */
 		n_chn = 2;
@@ -154,6 +150,10 @@ Convolver::reconfigure (uint32_t block_size)
 		/* ignore x-over */
 		n_imp = 2;
 	}
+
+#ifndef NDEBUG
+	printf ("Convolver::reconfigure Nin=%d Nout=%d Nimp=%d Nchn=%d\n", n_inputs (), n_outputs (), n_imp, n_chn);
+#endif
 
 	assert (n_imp <= 4);
 

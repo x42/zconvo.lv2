@@ -359,6 +359,8 @@ work_response (LV2_Handle  instance,
 	self->clv_online  = self->clv_offline;
 	self->clv_offline = old;
 
+	assert (self->clv_online != self->clv_offline || self->clv_online == NULL);
+
 	int d = CMD_FREE;
 	self->schedule->schedule_work (self->schedule->handle, sizeof (int), &d);
 	return LV2_WORKER_SUCCESS;
@@ -527,7 +529,7 @@ restore (LV2_Handle                  instance,
 	}
 
 	if (!ok) {
-		lv2_log_note (&self->logger, "ZConvolv State: configuration failed.\n");
+		//lv2_log_note (&self->logger, "ZConvolv State: configuration failed.\n");
 		delete self->clv_offline;
 		self->clv_offline = 0;
 		return LV2_STATE_ERR_NO_PROPERTY;
