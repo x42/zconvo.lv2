@@ -518,9 +518,11 @@ restore (LV2_Handle                  instance,
 		irs.gain = *((float*)value);
 	}
 
-	value = retrieve(handle, self->zc_chn_delay, &size, &type, &valflags);
-	if (value && size == sizeof(irs.channel_delay) && type == self->atom_Vector) {
-		memcpy (irs.channel_delay, LV2_ATOM_BODY(value), sizeof(irs.channel_delay));
+	value = retrieve (handle, self->zc_chn_delay, &size, &type, &valflags);
+	if (value && size == sizeof (LV2_Atom) + sizeof(irs.channel_delay) && type == self->atom_Vector) {
+		if (((LV2_Atom*)value)->type == self->atom_Int) {
+			memcpy (irs.channel_delay, LV2_ATOM_BODY(value), sizeof(irs.channel_delay));
+		}
 	}
 
 	value = retrieve (handle, self->zc_sum_ins, &size, &type, &valflags);
@@ -528,9 +530,11 @@ restore (LV2_Handle                  instance,
 		irs.sum_inputs = *((int32_t*)value) ? true : false;
 	}
 
-	value = retrieve(handle, self->zc_chn_gain, &size, &type, &valflags);
-	if (value && size == sizeof(irs.channel_gain) && type == self->atom_Vector) {
-		memcpy (irs.channel_gain, LV2_ATOM_BODY(value), sizeof(irs.channel_gain));
+	value = retrieve (handle, self->zc_chn_gain, &size, &type, &valflags);
+	if (value && size == sizeof (LV2_Atom) + sizeof(irs.channel_gain) && type == self->atom_Vector) {
+		if (((LV2_Atom*)value)->type == self->atom_Float) {
+			memcpy (irs.channel_gain, LV2_ATOM_BODY(value), sizeof(irs.channel_gain));
+		}
 	}
 
 	value = retrieve (handle, self->zc_ir, &size, &type, &valflags);
