@@ -3,10 +3,12 @@ zcpset:noopStereo
 	lv2:appliesTo <http://gareus.org/oss/lv2/@LV2NAME@#Stereo>;
 
 	rdfs:label "No-OP Stereo";
+	rdfs:comment "A No-OP 2in, 2out test impulse response: delta-spike followed by 63 zeroes. left -> left, right -> right mapping no left/right crossover.";
 	state:state [
 		<http://gareus.org/oss/lv2/zeroconvolv#ir> <ir/delta-48k.wav>;
 		<http://gareus.org/oss/lv2/zeroconvolv#predelay> "0"^^xsd:int;
 		<http://gareus.org/oss/lv2/zeroconvolv#gain> "1.0"^^xsd:float;
+		<http://gareus.org/oss/lv2/zeroconvolv#sum_inputs> false;
 		<http://gareus.org/oss/lv2/zeroconvolv#channel_predelay> [
 			a atom:Vector;
 			atom:childType atom:Int;

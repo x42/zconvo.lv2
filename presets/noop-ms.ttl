@@ -3,6 +3,7 @@ zcpset:noopMonoToStereo
 	lv2:appliesTo <http://gareus.org/oss/lv2/@LV2NAME@#MonoToStereo>;
 
 	rdfs:label "No-OP Mono to Stereo";
+	rdfs:comment "A No-OP 1in, 2out test impulse response: delta-spike followed by 63 zeroes";
 	state:state [
 		<http://gareus.org/oss/lv2/zeroconvolv#ir> <ir/delta-48k.wav>;
 		<http://gareus.org/oss/lv2/zeroconvolv#predelay> "0"^^xsd:int;
