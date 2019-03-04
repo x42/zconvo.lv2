@@ -90,8 +90,7 @@ typedef struct {
 	int      rt_priority;
 } zeroConvolv;
 
-
-typedef	struct {
+typedef struct {
 	uint32_t child_size;
 	uint32_t child_type;
 	union {
@@ -145,13 +144,13 @@ instantiate (const LV2_Descriptor*     descriptor,
 	LV2_URID tshed_pri = map->map (map->handle, "http://ardour.org/lv2/threads/#schedPriority");
 	LV2_URID atom_Int  = map->map (map->handle, LV2_ATOM__Int);
 
-	uint32_t max_block = 0;
-	uint32_t block_size = 0;
+	uint32_t max_block   = 0;
+	uint32_t block_size  = 0;
 	uint32_t rt_priority = 0;
 #ifdef _WIN32
-	uint32_t rt_policy =  SCHED_OTHER;
+	uint32_t rt_policy = SCHED_OTHER;
 #else
-	uint32_t rt_policy =  SCHED_FIFO;
+	uint32_t rt_policy = SCHED_FIFO;
 #endif
 
 	for (const LV2_Options_Option* o = options; o->key; ++o) {
@@ -196,9 +195,9 @@ instantiate (const LV2_Descriptor*     descriptor,
 	}
 
 	if (rt_priority == 0) {
-		const int p_min  = sched_get_priority_min (rt_policy);
-		const int p_max  = sched_get_priority_max (rt_policy);
-		rt_priority = (p_min + p_max) * .5;
+		const int p_min = sched_get_priority_min (rt_policy);
+		const int p_max = sched_get_priority_max (rt_policy);
+		rt_priority     = (p_min + p_max) * .5;
 		lv2_log_note (&logger, "ZConvolv: Using default rt-priority: %d\n", rt_priority);
 	} else {
 		/* note: zita-convolver enforces min/max range */
@@ -406,7 +405,6 @@ work (LV2_Handle                  instance,
 	return LV2_WORKER_SUCCESS;
 }
 
-
 static LV2_State_Status
 save (LV2_Handle                instance,
       LV2_State_Store_Function  store,
@@ -440,29 +438,29 @@ save (LV2_Handle                instance,
 
 	ZeroConvoLV2::Convolver::IRSettings const& irs (self->clv_online->settings ());
 
-	store (handle, self->zc_gain, &irs.gain, sizeof(float), self->atom_Float,
-			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+	store (handle, self->zc_gain, &irs.gain, sizeof (float), self->atom_Float,
+	       LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
-	store (handle, self->zc_predelay, &irs.pre_delay, sizeof(uint32_t), self->atom_Int,
-			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+	store (handle, self->zc_predelay, &irs.pre_delay, sizeof (uint32_t), self->atom_Int,
+	       LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
 	int32_t lv2bool = irs.sum_inputs ? 1 : 0;
-	store (handle, self->zc_sum_ins, &lv2bool, sizeof(int32_t), self->atom_Bool,
-			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+	store (handle, self->zc_sum_ins, &lv2bool, sizeof (int32_t), self->atom_Bool,
+	       LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
 	stateVector sv;
 
 	sv.child_type = self->atom_Float;
-	sv.child_size = sizeof(float);
-	memcpy (sv.f, irs.channel_gain, sizeof(irs.channel_gain));
-	store (handle, self->zc_chn_gain, (void*)&sv, sizeof(sv),
-			self->atom_Vector, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+	sv.child_size = sizeof (float);
+	memcpy (sv.f, irs.channel_gain, sizeof (irs.channel_gain));
+	store (handle, self->zc_chn_gain, (void*)&sv, sizeof (sv),
+	       self->atom_Vector, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
 	sv.child_type = self->atom_Int;
-	sv.child_size = sizeof(uint32_t);
-	memcpy (sv.i, irs.channel_delay, sizeof(irs.channel_delay));
-	store (handle, self->zc_chn_delay, (void*)&sv, sizeof(sv),
-			self->atom_Vector, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+	sv.child_size = sizeof (uint32_t);
+	memcpy (sv.i, irs.channel_delay, sizeof (irs.channel_delay));
+	store (handle, self->zc_chn_delay, (void*)&sv, sizeof (sv),
+	       self->atom_Vector, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
 	return LV2_STATE_SUCCESS;
 }
@@ -483,7 +481,7 @@ restore (LV2_Handle                  instance,
 	 * support), but fall back to instantiate() schedules (spec-violating
 	 * workaround for broken hosts). */
 	LV2_Worker_Schedule* schedule = self->schedule;
-	LV2_State_Map_Path* map_path = NULL;
+	LV2_State_Map_Path*  map_path = NULL;
 	for (int i = 0; features[i]; ++i) {
 		if (!strcmp (features[i]->URI, LV2_WORKER__schedule)) {
 			lv2_log_note (&self->logger, "ZConvolv State: using thread-safe restore scheduler\n");
@@ -519,9 +517,9 @@ restore (LV2_Handle                  instance,
 	}
 
 	value = retrieve (handle, self->zc_chn_delay, &size, &type, &valflags);
-	if (value && size == sizeof (LV2_Atom) + sizeof(irs.channel_delay) && type == self->atom_Vector) {
+	if (value && size == sizeof (LV2_Atom) + sizeof (irs.channel_delay) && type == self->atom_Vector) {
 		if (((LV2_Atom*)value)->type == self->atom_Int) {
-			memcpy (irs.channel_delay, LV2_ATOM_BODY(value), sizeof(irs.channel_delay));
+			memcpy (irs.channel_delay, LV2_ATOM_BODY (value), sizeof (irs.channel_delay));
 		}
 	}
 
@@ -531,9 +529,9 @@ restore (LV2_Handle                  instance,
 	}
 
 	value = retrieve (handle, self->zc_chn_gain, &size, &type, &valflags);
-	if (value && size == sizeof (LV2_Atom) + sizeof(irs.channel_gain) && type == self->atom_Vector) {
+	if (value && size == sizeof (LV2_Atom) + sizeof (irs.channel_gain) && type == self->atom_Vector) {
 		if (((LV2_Atom*)value)->type == self->atom_Float) {
-			memcpy (irs.channel_gain, LV2_ATOM_BODY(value), sizeof(irs.channel_gain));
+			memcpy (irs.channel_gain, LV2_ATOM_BODY (value), sizeof (irs.channel_gain));
 		}
 	}
 

@@ -185,7 +185,7 @@ Convolver::reconfigure (uint32_t block_size)
 		const uint32_t chan_delay = _ir_settings.pre_delay + _ir_settings.channel_delay[c];
 
 #ifndef NDEBUG
-		printf ("Convolver map: IR-chn %d: in %d -> out %d (gain: %.1fdB delay; %d)\n", ir_c + 1, io_i + 1, io_o + 1, 20.f * log10f(chan_gain), chan_delay);
+		printf ("Convolver map: IR-chn %d: in %d -> out %d (gain: %.1fdB delay; %d)\n", ir_c + 1, io_i + 1, io_o + 1, 20.f * log10f (chan_gain), chan_delay);
 #endif
 
 		uint32_t pos = 0;
@@ -225,7 +225,7 @@ Convolver::reconfigure (uint32_t block_size)
 	}
 
 	if (rv == 0) {
-		rv = _convproc.start_process (_sched_priority,_sched_policy);
+		rv = _convproc.start_process (_sched_priority, _sched_policy);
 	}
 
 	assert (rv == 0); // bail out in debug builds
@@ -295,7 +295,7 @@ Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
 		if (_irc >= Stereo) {
 			memcpy (&_convproc.inpdata (1)[_offset], &right[done], sizeof (float) * ns);
 		}
-		memcpy (&left[done],  &_convproc.outdata (0)[_offset], sizeof (float) * ns);
+		memcpy (&left[done], &_convproc.outdata (0)[_offset], sizeof (float) * ns);
 		memcpy (&right[done], &_convproc.outdata (1)[_offset], sizeof (float) * ns);
 
 		_offset += ns;

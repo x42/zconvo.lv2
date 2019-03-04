@@ -25,8 +25,8 @@
 
 #include "readable.h"
 
-namespace ZeroConvoLV2 {
-
+namespace ZeroConvoLV2
+{
 class SrcSource : public Readable
 {
 public:
@@ -95,7 +95,7 @@ protected:
 	uint32_t _n_channels;
 	uint32_t _sample_rate;
 	uint64_t _len;
-	float* _buf;
+	float*   _buf;
 };
 
 class SFSource : public Readable

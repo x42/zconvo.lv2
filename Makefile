@@ -65,9 +65,9 @@ ifneq ($(shell pkg-config --exists sndfile samplerate && echo yes), yes)
 endif
 
 ifeq ($(STATICZITA), yes)
- CPPFLAGS+=-Izita/
- LIBZITACONVOLVER=zita/zita-convolver.cc
- LOADLIBES="-lfftw3f"
+  CPPFLAGS+=-Izita/
+  LIBZITACONVOLVER=zita/zita-convolver.cc
+  LOADLIBES="-lfftw3f"
 endif
 ifeq ($(LIBZITACONVOLVER),)
   ifeq ($(shell test -f /usr/include/zita-convolver.h -o -f /usr/local/include/zita-convolver.h || echo no ), no)
