@@ -23,7 +23,7 @@ are supported.
 Install
 -------
 
-Don't. The plugin is stil work-in-progress.
+Don't. The plugin is still work-in-progress.
 
 ```bash
 make
