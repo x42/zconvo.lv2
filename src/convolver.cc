@@ -130,13 +130,13 @@ Convolver::reconfigure (uint32_t block_size)
 	 * - Mono:
 	 *    always use first only
 	 * - MonoToStereo:
-	 *    mono-file: use 1st for M -> L, M -> R
+	 *    mono-file: use 1st for both M -> L, M -> R
 	 *    else: use first two channels
 	 * - Stereo
 	 *    mono-file: use 1st for both L -> L, R -> R, no x-over
 	 *    stereo-file: L -> L, R -> R  -- no L/R, R/L x-over
 	 *    3chan-file: ignore 3rd channel, use as stereo-file.
-	 *    4chan file:  L -> L, L -> R, R -> R, R -> L
+	 *    4chan file:  L -> L, L -> R, R -> L, R -> R
 	 */
 
 	uint32_t n_imp = n_inputs () * n_outputs ();
