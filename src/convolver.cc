@@ -188,6 +188,15 @@ Convolver::reconfigure (uint32_t block_size)
 		printf ("Convolver map: IR-chn %d: in %d -> out %d (gain: %.1fdB delay; %d)\n", ir_c + 1, io_i + 1, io_o + 1, 20.f * log10f (chan_gain), chan_delay);
 #endif
 
+		/* this allows for 4 channel files
+		 *    LL, LR, RL, RR
+		 * to be used in simple stereo lower CPU configuration:
+		 *    LL, --, --, RR
+		 */
+		if (chan_gain == 0.f) {
+			continue;
+		}
+
 		uint32_t pos = 0;
 		while (true) {
 			float ir[8192];
