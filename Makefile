@@ -83,7 +83,7 @@ override CXXFLAGS +=`pkg-config --cflags glib-2.0 lv2 sndfile samplerate`
 override LOADLIBES +=`pkg-config --libs sndfile samplerate` -lm
 
 ifeq ($(shell pkg-config --atleast-version=1.8.1 lv2 && echo yes), yes)
-	override CXXFLAGS += -DHAVE_LV2_1_8
+  override CXXFLAGS += -DHAVE_LV2_1_8
 endif
 
 ###############################################################################
