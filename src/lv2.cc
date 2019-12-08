@@ -414,12 +414,20 @@ save (LV2_Handle                instance,
 {
 	zeroConvolv* self = (zeroConvolv*)instance;
 
-	LV2_State_Map_Path* map_path = NULL;
+	LV2_State_Map_Path*  map_path = NULL;
+#ifdef LV2_STATE__freePath
+	LV2_State_Free_Path* free_path = NULL;
+#endif
 
 	for (int i = 0; features[i]; ++i) {
 		if (!strcmp (features[i]->URI, LV2_STATE__mapPath)) {
 			map_path = (LV2_State_Map_Path*)features[i]->data;
 		}
+#ifdef LV2_STATE__freePath
+		else if (!strcmp(features[i]->URI, LV2_STATE__freePath)) {
+			free_path = (LV2_State_Free_Path*)features[i]->data;
+		}
+#endif
 	}
 
 	if (!map_path) {
@@ -432,8 +440,15 @@ save (LV2_Handle                instance,
 
 	char* apath = map_path->abstract_path (map_path->handle, self->clv_online->path ().c_str ());
 	store (handle, self->zc_ir, apath, strlen (apath) + 1, self->atom_Path, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+#ifdef LV2_STATE__freePath
+	if (free_path) {
+		free_path->free_path (free_path->handle, apath);
+	} else
+#endif
 #ifndef _WIN32 // https://github.com/drobilla/lilv/issues/14
-	free (apath);
+	{
+		free (apath);
+	}
 #endif
 
 	ZeroConvoLV2::Convolver::IRSettings const& irs (self->clv_online->settings ());
@@ -482,6 +497,9 @@ restore (LV2_Handle                  instance,
 	 * workaround for broken hosts). */
 	LV2_Worker_Schedule* schedule = self->schedule;
 	LV2_State_Map_Path*  map_path = NULL;
+#ifdef LV2_STATE__freePath
+	LV2_State_Free_Path* free_path = NULL;
+#endif
 	for (int i = 0; features[i]; ++i) {
 		if (!strcmp (features[i]->URI, LV2_WORKER__schedule)) {
 			lv2_log_note (&self->logger, "ZConvolv State: using thread-safe restore scheduler\n");
@@ -489,6 +507,11 @@ restore (LV2_Handle                  instance,
 		} else if (!strcmp (features[i]->URI, LV2_STATE__mapPath)) {
 			map_path = (LV2_State_Map_Path*)features[i]->data;
 		}
+#ifdef LV2_STATE__freePath
+		else if (!strcmp(features[i]->URI, LV2_STATE__freePath)) {
+			free_path = (LV2_State_Free_Path*)features[i]->data;
+		}
+#endif
 	}
 	if (!map_path) {
 		return LV2_STATE_ERR_NO_FEATURE;
@@ -547,8 +570,15 @@ restore (LV2_Handle                  instance,
 		} catch (std::runtime_error& err) {
 			lv2_log_warning (&self->logger, "ZConvolv Convolver: %s.\n", err.what ());
 		}
+#ifdef LV2_STATE__freePath
+		if (free_path) {
+			free_path->free_path (free_path->handle, path);
+		} else
+#endif
 #ifndef _WIN32 // https://github.com/drobilla/lilv/issues/14
-		free (path);
+		{
+			free (path);
+		}
 #endif
 	}
 
