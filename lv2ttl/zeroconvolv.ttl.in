@@ -1,6 +1,7 @@
 @prefix bufsz: <http://lv2plug.in/ns/ext/buf-size#> .
 @prefix doap:  <http://usefulinc.com/ns/doap#>.
 @prefix foaf:  <http://xmlns.com/foaf/0.1/>.
+@prefix log:   <http://lv2plug.in/ns/ext/log#> .
 @prefix lv2:   <http://lv2plug.in/ns/lv2core#>.
 @prefix opts:  <http://lv2plug.in/ns/ext/options#> .
 @prefix pg:    <http://lv2plug.in/ns/ext/port-groups#>.
@@ -11,6 +12,9 @@
 @prefix work:  <http://lv2plug.in/ns/ext/worker#>.
 
 @prefix conv:  <http://gareus.org/oss/lv2/@LV2NAME@#>.
+
+# https://github.com/drobilla/lilv/issues/14
+state:freePath a lv2:Feature .
 
 <http://gareus.org/rgareus#me>
 	a foaf:Person;
@@ -31,7 +35,10 @@ conv:Mono
 	@VERSION@
 	lv2:requiredFeature bufsz:boundedBlockLength, urid:map, opts:options, work:schedule;
 	lv2:extensionData work:interface, state:interface, opts:interface;
-	lv2:optionalFeature lv2:hardRTCapable, state:threadSafeRestore;
+	lv2:optionalFeature lv2:hardRTCapable, state:threadSafeRestore, log:log, state:mapPath, state:freePath;
+	opts:supportedOption bufsz:maxBlockLength, bufsz:nominalBlockLength ;
+	opts:supportedOption <http://ardour.org/lv2/threads/#schedPolicy>;
+	opts:supportedOption <http://ardour.org/lv2/threads/#schedPriority>;
 	lv2:port [
 		a lv2:ControlPort, lv2:OutputPort;
 		lv2:index 0;
@@ -63,7 +70,10 @@ conv:Stereo
 	lv2:minorVersion 4;
 	lv2:requiredFeature bufsz:boundedBlockLength, urid:map, opts:options, work:schedule;
 	lv2:extensionData work:interface, state:interface, opts:interface;
-	lv2:optionalFeature lv2:hardRTCapable, state:threadSafeRestore;
+	lv2:optionalFeature lv2:hardRTCapable, state:threadSafeRestore, log:log, state:mapPath, state:freePath;
+	opts:supportedOption bufsz:maxBlockLength, bufsz:nominalBlockLength ;
+	opts:supportedOption <http://ardour.org/lv2/threads/#schedPolicy>;
+	opts:supportedOption <http://ardour.org/lv2/threads/#schedPriority>;
 	lv2:port [
 		a lv2:ControlPort, lv2:OutputPort;
 		lv2:index 0;
@@ -107,10 +117,12 @@ conv:MonoToStereo
 	lv2:project <http://gareus.org/oss/lv2/zeroconvolv> ;
 	lv2:microVersion 0;
 	lv2:minorVersion 4;
-	lv2:requiredFeature urid:map, opts:options, work:schedule;
 	lv2:requiredFeature bufsz:boundedBlockLength, urid:map, opts:options, work:schedule;
 	lv2:extensionData work:interface, state:interface, opts:interface;
-	lv2:optionalFeature lv2:hardRTCapable, state:threadSafeRestore;
+	lv2:optionalFeature lv2:hardRTCapable, state:threadSafeRestore, log:log, state:mapPath, state:freePath;
+	opts:supportedOption bufsz:maxBlockLength, bufsz:nominalBlockLength ;
+	opts:supportedOption <http://ardour.org/lv2/threads/#schedPolicy>;
+	opts:supportedOption <http://ardour.org/lv2/threads/#schedPriority>;
 	lv2:port [
 		a lv2:ControlPort, lv2:OutputPort;
 		lv2:index 0;
