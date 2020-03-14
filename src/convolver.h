@@ -62,7 +62,7 @@ public:
 	void run (float*, uint32_t);
 	void run_stereo (float* L, float* R, uint32_t);
 
-	void reconfigure (uint32_t);
+	void reconfigure (uint32_t, bool threaded = true);
 
 	uint32_t latency () const { return _n_samples; }
 

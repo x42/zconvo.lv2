@@ -93,7 +93,7 @@ Convolver::~Convolver ()
 }
 
 void
-Convolver::reconfigure (uint32_t block_size)
+Convolver::reconfigure (uint32_t block_size, bool threaded)
 {
 	_convproc.stop_process ();
 	_convproc.cleanup ();
@@ -101,15 +101,20 @@ Convolver::reconfigure (uint32_t block_size)
 
 	assert (!_readables.empty ());
 
+	uint32_t n_part;
+
+	if (threaded) {
+		_n_samples = 64;
+		n_part = Convproc::MAXPART;
+	} else {
+		uint32_t power_of_two;
+		for (power_of_two = 1; 1U << power_of_two < _n_samples; ++power_of_two) ;
+		_n_samples = 1 << power_of_two;
+		n_part = _n_samples;
+	}
+
 	_offset    = 0;
-	_n_samples = block_size;
 	_max_size  = _readables[0]->readable_length ();
-
-	uint32_t power_of_two;
-	for (power_of_two = 1; 1U << power_of_two < _n_samples; ++power_of_two) ;
-	_n_samples = 1 << power_of_two;
-
-	int n_part = std::min ((uint32_t)Convproc::MAXPART, 4 * _n_samples);
 
 	int rv = _convproc.configure (
 	    /*in*/  n_inputs (),
