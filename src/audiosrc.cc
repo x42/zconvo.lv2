@@ -16,8 +16,21 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define MINIMP3_IMPLEMENTATION
+
 #include <cmath>
+#include <fcntl.h>
+#include <stdint.h>
 #include <string.h>
+#include <unistd.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
 
 #include "audiosrc.h"
 
@@ -243,4 +256,197 @@ void
 FileSource::open (std::string const& path)
 {
 	_sndfile = sf_open (path.c_str (), SFM_READ, &_info);
+}
+
+/* ****************************************************************************/
+
+Mp3Source::Mp3Source (const std::string& path)
+	: _fd (-1)
+	, _map_addr (0)
+	, _map_length (0)
+	, _buffer (0)
+	, _remain (0)
+	, _read_position (0)
+	, _pcm_off (0)
+	, _n_frames (0)
+{
+	mp3dec_init (&_mp3d);
+	memset (&_info, 0, sizeof (_info));
+
+#ifdef _WIN32
+	HANDLE file_handle = CreateFileA (path.c_str (), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+	if (INVALID_HANDLE_VALUE == file_handle) {
+		throw std::runtime_error ("Error: cannot open IR/mp3 file");
+	}
+
+	LARGE_INTEGER s;
+	s.LowPart = GetFileSize (file_handle, (DWORD*)&s.HighPart);
+	if (s.LowPart == INVALID_FILE_SIZE && GetLastError () != NO_ERROR) {
+		CloseHandle (file_handle);
+		throw std::runtime_error ("Error: cannot stat IR/mp3 file");
+	}
+
+	_map_length = s.QuadPart;
+
+	HANDLE map_handle = CreateFileMapping (file_handle, NULL, PAGE_READONLY, 0, 0, NULL);
+	if (map_handle == NULL) {
+		CloseHandle (file_handle);
+		throw std::runtime_error ("Error: cannot page IR/mp3 file");
+	}
+
+	LPVOID view_handle = MapViewOfFile (map_handle, FILE_MAP_READ, 0, 0, _map_length);
+	if (view_handle == NULL) {
+		CloseHandle (map_handle);
+		CloseHandle (file_handle);
+		throw std::runtime_error ("Error: cannot mmap IR/mp3 file");
+	}
+
+	_map_addr = (const uint8_t*)view_handle;
+	CloseHandle (map_handle);
+	CloseHandle (file_handle);
+
+#else
+	struct stat statbuf;
+	if (stat (path.c_str (), &statbuf) != 0) {
+		throw std::runtime_error ("Error: cannot stat IR/mp3 file");
+	}
+
+	_fd = open (path.c_str (), O_RDONLY);
+	if (_fd == -1) {
+		throw std::runtime_error ("Error: cannot open IR/mp3 file");
+	}
+	_map_length = statbuf.st_size;
+
+	_map_addr = (const uint8_t*)mmap (NULL, _map_length, PROT_READ, MAP_PRIVATE, _fd, 0);
+	if (_map_addr == MAP_FAILED) {
+		close (_fd);
+		throw std::runtime_error ("Error: cannot mmap IR/mp3 file");
+	}
+#endif
+
+	_buffer = _map_addr;
+	_remain = _map_length;
+
+	if (!decode_mp3 ()) {
+		unmap_mem ();
+		throw std::runtime_error ("Error: cannot decode IR/mp3 file");
+	}
+
+	/* detect accurate length by parsing frame headers */
+	_len = _n_frames;
+	while (decode_mp3 (true)) {
+		_len += _n_frames;
+	}
+	_read_position = _len;
+	seek (0);
+}
+
+Mp3Source::~Mp3Source ()
+{
+	unmap_mem ();
+}
+
+void
+Mp3Source::unmap_mem ()
+{
+#ifdef _WIN32
+	if (_map_addr) {
+		UnmapViewOfFile (_map_addr);
+	}
+#else
+	munmap ((void*)_map_addr, _map_length);
+	close (_fd);
+#endif
+	_map_addr = 0;
+}
+
+int
+Mp3Source::decode_mp3 (bool parse_only)
+{
+	_pcm_off = 0;
+	do {
+		_n_frames = mp3dec_decode_frame (&_mp3d, _buffer, _remain, parse_only ? NULL : _pcm, &_info);
+		_buffer += _info.frame_bytes;
+		_remain -= _info.frame_bytes;
+		if (_n_frames) {
+			break;
+		}
+	} while (_info.frame_bytes);
+	return _n_frames;
+}
+
+void
+Mp3Source::seek (uint64_t pos)
+{
+	if (_read_position == pos) {
+		return;
+	}
+
+	/* rewind, then decode to pos */
+	if (pos < _read_position) {
+		_buffer        = _map_addr;
+		_remain        = _map_length;
+		_read_position = 0;
+		_pcm_off       = 0;
+		mp3dec_init (&_mp3d);
+		decode_mp3 ();
+	}
+
+	while (_read_position + _n_frames <= pos) {
+		/* skip ahead, until the frame before the target,
+		 * then start decoding. This provides sufficient
+		 * context to prevent audible hiccups, while still
+		 * providing fast and accurate seeking.
+		 */
+		if (!decode_mp3 (_read_position + 3 * _n_frames <= pos)) {
+			break;
+		}
+		_read_position += _n_frames;
+	}
+
+	if (_n_frames > 0) {
+		_pcm_off = _info.channels * (pos - _read_position);
+		_n_frames -= pos - _read_position;
+		_read_position = pos;
+	}
+}
+
+uint64_t
+Mp3Source::read (float* dst, uint64_t start, uint64_t cnt, uint32_t chn) const
+{
+	return (const_cast<Mp3Source*> (this))->_read (dst, start, cnt, chn);
+}
+
+uint64_t
+Mp3Source::_read (float* dst, uint64_t start, uint64_t cnt, uint32_t chn)
+{
+	const uint32_t n_chn = n_channels ();
+	if (chn > n_chn || cnt == 0) {
+		return 0;
+	}
+	if (start != _read_position) {
+		seek (start);
+	}
+
+	size_t   dst_off = 0;
+	uint64_t remain  = cnt;
+
+	while (remain > 0) {
+		uint64_t samples_to_copy = std::min (remain, (uint64_t)_n_frames);
+
+		for (uint64_t n = 0; n < samples_to_copy; ++n) {
+			dst[dst_off] = _pcm[_pcm_off + chn];
+			dst_off        += 1;
+			remain         -= 1;
+			_n_frames      -= 1;
+			_pcm_off       += n_chn;
+			_read_position += 1;
+		}
+
+		if (_n_frames <= 0 && !decode_mp3 ()) {
+			/* EOF, or decode error */
+			break;
+		}
+	}
+	return dst_off;
 }
