@@ -276,6 +276,7 @@ private:
 	void process (bool sync);
 
 	int readout (bool sync, uint32_t skipcnt);
+	int readtail (uint32_t n_samples);
 
 	void stop (void);
 
@@ -419,6 +420,7 @@ public:
 	int start_process (int abspri, int policy);
 
 	int process (bool sync = false);
+	int tailonly (uint32_t n_samples);
 
 	int stop_process (void);
 
