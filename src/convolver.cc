@@ -278,7 +278,7 @@ Convolver::run (float* buf, uint32_t n_samples)
 		remain  -= ns;
 
 		if (_offset == _n_samples) {
-			_convproc.process (/*sync, freewheeling*/ true);
+			_convproc.process ();
 			_offset = 0;
 		}
 	}
@@ -308,7 +308,7 @@ Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
 		remain  -= ns;
 
 		if (_offset == _n_samples) {
-			_convproc.process (true);
+			_convproc.process ();
 			_offset = 0;
 		}
 	}
