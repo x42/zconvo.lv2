@@ -32,7 +32,7 @@ namespace LV2ZetaConvolver
 #undef ZCSEMA_IS_IMPLEMENTED
 #endif
 
-#if defined(__linux__) || defined(__GNU__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__linux__) || defined(__GNU__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(PTW32_VERSION) || defined (__WINPTHREADS_VERSION)
 
 #include <semaphore.h>
 
