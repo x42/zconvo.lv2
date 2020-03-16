@@ -155,16 +155,16 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 
 	if (threaded) {
 		_n_samples = 64;
-		n_part = Convproc::MAXPART;
+		n_part     = Convproc::MAXPART;
 	} else {
 		uint32_t power_of_two;
 		for (power_of_two = 1; 1U << power_of_two < _n_samples; ++power_of_two) ;
 		_n_samples = 1 << power_of_two;
-		n_part = _n_samples;
+		n_part     = _n_samples;
 	}
 
-	_offset    = 0;
-	_max_size  = _readables[0]->readable_length ();
+	_offset   = 0;
+	_max_size = _readables[0]->readable_length ();
 
 	int rv = _convproc.configure (
 	    /*in*/  n_inputs (),
