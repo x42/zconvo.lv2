@@ -20,9 +20,9 @@
 
 #include <string>
 #include <vector>
-#include <zita-convolver.h>
 
 #include "readable.h"
+#include "zeta-convolver.h"
 
 namespace ZeroConvoLV2
 {

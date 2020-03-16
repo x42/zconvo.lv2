@@ -22,7 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "zita-convolver.h"
+#include "zeta-convolver.h"
 
 float Convproc::_mac_cost = 1.0f;
 float Convproc::_fft_cost = 5.0f;

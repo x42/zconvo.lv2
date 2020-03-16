@@ -23,10 +23,6 @@
 #include "audiosrc.h"
 #include "convolver.h"
 
-#if ZITA_CONVOLVER_MAJOR_VERSION != 3 && ZITA_CONVOLVER_MAJOR_VERSION != 4
-# error "This programs requires zita-convolver 3 or 4"
-#endif
-
 using namespace ZeroConvoLV2;
 
 Convolver::Convolver (
@@ -122,14 +118,9 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 	    /*max-convolution length */ _max_size,
 	    /*quantum, nominal-buffersize*/ _n_samples,
 	    /*Convproc::MINPART*/ _n_samples,
-	    /*Convproc::MAXPART*/ n_part
-#if ZITA_CONVOLVER_MAJOR_VERSION == 4
-	    /*density*/, 0
-#endif
+	    /*Convproc::MAXPART*/ n_part,
+	    /*density*/ 0
 	    );
-#if ZITA_CONVOLVER_MAJOR_VERSION == 3
-	_convproc.set_density (0);
-#endif
 
 	/* map channels
 	 * - Mono:

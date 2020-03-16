@@ -17,17 +17,14 @@
 //
 // ----------------------------------------------------------------------------
 
-#ifndef _ZITA_CONVOLVER_H
-#define _ZITA_CONVOLVER_H
+#ifndef _ZETA_CONVOLVER_H
+#define _ZETA_CONVOLVER_H
 
 #include <fftw3.h>
 #include <pthread.h>
 #include <stdint.h>
 
-#define ZITA_CONVOLVER_MAJOR_VERSION 4
-#define ZITA_CONVOLVER_MINOR_VERSION 0
-
-namespace LV2ZitaConvolver
+namespace LV2ZetaConvolver
 {
 // ----------------------------------------------------------------------------
 
@@ -455,8 +452,8 @@ private:
 
 // ----------------------------------------------------------------------------
 
-} // namespace LV2ZitaConvolver
+} // namespace LV2ZetaConvolver
 
-using namespace LV2ZitaConvolver;
+using namespace LV2ZetaConvolver;
 
 #endif
