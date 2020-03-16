@@ -125,30 +125,4 @@ private:
 	void open (std::string const&);
 };
 
-class VirtFileSource : public SFSource
-{
-public:
-	VirtFileSource (std::string const&);
-	~VirtFileSource ();
-
-protected:
-	void open ();
-
-private:
-	static sf_count_t sf_vio_get_filelen (void* user_data);
-	static sf_count_t sf_vio_seek (sf_count_t offset, int whence, void* user_data);
-	static sf_count_t sf_vio_read (void* ptr, sf_count_t count, void* user_data);
-	static sf_count_t sf_vio_tell (void* user_data);
-
-	sf_count_t vio_get_filelen ();
-	sf_count_t vio_seek (sf_count_t offset, int whence);
-	sf_count_t vio_read (void* ptr, sf_count_t count);
-	sf_count_t vio_tell ();
-
-	sf_count_t _offset;
-
-	uint64_t _len;
-	uint8_t* _buf;
-};
-
 }

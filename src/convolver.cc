@@ -96,15 +96,11 @@ Convolver::Convolver (
 	, _wet_target (1.f)
 	, _a (2950.f / sample_rate) // ~20Hz for 90%
 {
-#if 0 // Test Signal
-	_fs = new MemSource ();
-#else
 	if (_path.substr (0, 4) == "mem:") {
-		_fs = new VirtFileSource (_path);
+		_fs = new MemSource ();
 	} else {
 		_fs = new FileSource (_path);
 	}
-#endif
 
 	if (_fs->readable_length () > 0x1000000 /*2^24*/) {
 		delete _fs;
