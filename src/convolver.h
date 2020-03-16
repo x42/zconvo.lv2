@@ -26,6 +26,19 @@
 
 namespace ZeroConvoLV2
 {
+class TimeDomainConvolver
+{
+public:
+	TimeDomainConvolver ();
+	void reset ();
+	void configure (Readable*, float gain, uint32_t delay);
+	void run (float* out, float const* in, uint32_t) const;
+
+private:
+	bool  _enabled;
+	float _ir[64];
+};
+
 class Convolver
 {
 public:

@@ -25,6 +25,55 @@
 
 using namespace ZeroConvoLV2;
 
+TimeDomainConvolver::TimeDomainConvolver ()
+{
+	reset ();
+}
+
+void
+TimeDomainConvolver::reset ()
+{
+	memset (_ir, 0, 64 * sizeof (float));
+	_enabled = false;
+}
+
+void
+TimeDomainConvolver::configure (Readable* r, float gain, uint32_t delay)
+{
+	if (delay >= 64) {
+		return;
+	}
+	uint32_t to_read = std::min ((uint32_t)64, delay);
+	uint32_t max_len = r->readable_length ();
+	if (delay < max_len) {
+		to_read = std::min (to_read, max_len - delay);
+	}
+	if (to_read == 0) {
+		return;
+	}
+
+	r->read (&_ir[delay], 0, to_read, 0);
+
+	if (gain != 1.f) {
+		for (uint64_t i = delay; i < 64; ++i) {
+			_ir[i] *= gain;
+		}
+	}
+}
+
+void
+TimeDomainConvolver::run (float* out, float const* in, uint32_t n_samples) const
+{
+	if (!_enabled) {
+		return;
+	}
+	for (uint32_t i = 0; i < n_samples; ++i) {
+		for (uint32_t j = 0; j < n_samples - i; ++j) {
+			out[i + j] += in[i] * _ir[j];
+		}
+	}
+}
+
 Convolver::Convolver (
 		std::string const& path,
 		uint32_t sample_rate,
