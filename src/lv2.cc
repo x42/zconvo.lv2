@@ -318,8 +318,10 @@ run (LV2_Handle instance, uint32_t n_samples)
 		return;
 	}
 
+	bool buffered = false;
+
 	assert (self->clv_online->ready ());
-	*self->p_latency = self->clv_online->latency ();
+	*self->p_latency = buffered ? self->clv_online->latency () : 0;
 
 	copy_no_inplace_buffers (self->output[0], self->input[0], n_samples);
 
@@ -334,14 +336,26 @@ run (LV2_Handle instance, uint32_t n_samples)
 		} else {
 			copy_no_inplace_buffers (self->output[1], self->input[1], n_samples);
 		}
-		self->clv_online->run_stereo (self->output[0], self->output[1], n_samples);
+		if (buffered) {
+			self->clv_online->run_buffered_stereo (self->output[0], self->output[1], n_samples);
+		} else {
+			self->clv_online->run_stereo (self->output[0], self->output[1], n_samples);
+		}
 	} else if (self->chn_out == 2) {
 		assert (self->chn_in == 1);
-		self->clv_online->run_stereo (self->output[0], self->output[1], n_samples);
+		if (buffered) {
+			self->clv_online->run_buffered_stereo (self->output[0], self->output[1], n_samples);
+		} else {
+			self->clv_online->run_stereo (self->output[0], self->output[1], n_samples);
+		}
 	} else {
 		assert (self->chn_in == 1);
 		assert (self->chn_out == 1);
-		self->clv_online->run (self->output[0], n_samples);
+		if (buffered) {
+			self->clv_online->run_buffered_mono (self->output[0], n_samples);
+		} else {
+			self->clv_online->run_mono (self->output[0], n_samples);
+		}
 	}
 }
 

@@ -72,7 +72,10 @@ public:
 			IRSettings irs = IRSettings ());
 	~Convolver ();
 
-	void run (float*, uint32_t);
+	void run_buffered_mono (float*, uint32_t);
+	void run_buffered_stereo (float* L, float* R, uint32_t);
+
+	void run_mono (float*, uint32_t);
 	void run_stereo (float* L, float* R, uint32_t);
 
 	void reconfigure (uint32_t, bool threaded = true);
@@ -99,6 +102,7 @@ private:
 	int             _sched_priority;
 	IRSettings      _ir_settings;
 
+	TimeDomainConvolver _tdc[4];
 
 	uint32_t _n_samples;
 	uint32_t _max_size;

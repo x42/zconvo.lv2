@@ -202,6 +202,10 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 
 	assert (n_imp <= 4);
 
+	for (uint32_t i = 0; i < 4; ++i) {
+		_tdc[i].reset ();
+	}
+
 	for (uint32_t c = 0; c < n_imp && rv == 0; ++c) {
 		int ir_c = c % n_chn;
 		int io_o = c % n_outputs ();
@@ -220,7 +224,6 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 			 */
 			io_i = (c / n_outputs ()) % n_inputs ();
 		}
-
 
 		Readable* r = _readables[ir_c];
 		assert (r->readable_length () == _max_size);
@@ -241,6 +244,9 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 		if (chan_gain == 0.f) {
 			continue;
 		}
+
+		assert ((io_i * 2 + io_o) < 4);
+		_tdc[io_i * 2 + io_o].configure (r, chan_gain, chan_delay);
 
 		uint32_t pos = 0;
 		while (true) {
@@ -305,7 +311,7 @@ Convolver::ready () const
 }
 
 void
-Convolver::run (float* buf, uint32_t n_samples)
+Convolver::run_buffered_mono (float* buf, uint32_t n_samples)
 {
 	assert (_convproc.state () == Convproc::ST_PROC);
 	assert (_irc == Mono);
@@ -334,7 +340,7 @@ Convolver::run (float* buf, uint32_t n_samples)
 }
 
 void
-Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
+Convolver::run_buffered_stereo (float* left, float* right, uint32_t n_samples)
 {
 	assert (_convproc.state () == Convproc::ST_PROC);
 	assert (_irc != Mono);
@@ -360,5 +366,83 @@ Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
 			_convproc.process ();
 			_offset = 0;
 		}
+	}
+}
+
+void
+Convolver::run_mono (float* buf, uint32_t n_samples)
+{
+	assert (_convproc.state () == Convproc::ST_PROC);
+	assert (_irc == Mono);
+
+	uint32_t done   = 0;
+	uint32_t remain = n_samples;
+
+	while (remain > 0) {
+		uint32_t ns = std::min (remain, _n_samples - _offset);
+
+		float* const in  = _convproc.inpdata (/*channel*/ 0);
+		float* const out = _convproc.outdata (/*channel*/ 0);
+
+		memcpy (&in[_offset], &buf[done], sizeof (float) * ns);
+
+		if (_offset + ns == _n_samples) {
+			_convproc.process ();
+			memcpy (&buf[done], &out[_offset], sizeof (float) * ns);
+			_offset = 0;
+		} else {
+			assert (remain == ns);
+			_convproc.tailonly (_offset + ns);
+			_tdc[0].run (&out[_offset], &buf[done], ns);
+			memcpy (&buf[done], &out[_offset], sizeof (float) * ns);
+			_offset += ns;
+		}
+		done   += ns;
+		remain -= ns;
+	}
+}
+
+void
+Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
+{
+	assert (_convproc.state () == Convproc::ST_PROC);
+	assert (_irc != Mono);
+
+	uint32_t done   = 0;
+	uint32_t remain = n_samples;
+
+	float* const outL = _convproc.outdata (0);
+	float* const outR = _convproc.outdata (1);
+
+	while (remain > 0) {
+		uint32_t ns = std::min (remain, _n_samples - _offset);
+
+		memcpy (&_convproc.inpdata (0)[_offset], &left[done], sizeof (float) * ns);
+		if (_irc >= Stereo) {
+			memcpy (&_convproc.inpdata (1)[_offset], &right[done], sizeof (float) * ns);
+		}
+
+		if (_offset + ns == _n_samples) {
+			_convproc.process ();
+			memcpy (&left[done],  &outL[_offset], sizeof (float) * ns);
+			memcpy (&right[done], &outR[_offset], sizeof (float) * ns);
+			_offset = 0;
+		} else {
+			assert (remain == ns);
+
+			_convproc.tailonly (_offset + ns);
+
+			_tdc[0].run (&outL[_offset], &left[done], ns);
+			_tdc[1].run (&outL[_offset], &right[done], ns);
+			_tdc[2].run (&outR[_offset], &left[done], ns);
+			_tdc[3].run (&outR[_offset], &right[done], ns);
+
+			memcpy (&left[done],  &outL[_offset], sizeof (float) * ns);
+			memcpy (&right[done], &outR[_offset], sizeof (float) * ns);
+			_offset += ns;
+		}
+		done   += ns;
+		remain -= ns;
+
 	}
 }
