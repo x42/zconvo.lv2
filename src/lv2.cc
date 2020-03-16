@@ -18,18 +18,24 @@
  */
 
 #include <assert.h>
+#include <math.h>
+#include <pthread.h>
 #include <stdexcept>
 #include <stdlib.h>
 
+#include <string>
+
 #include "convolver.h"
 
-#include "lv2/lv2plug.in/ns/ext/atom/atom.h"
-#include "lv2/lv2plug.in/ns/ext/urid/urid.h"
+#include <lv2/lv2plug.in/ns/ext/atom/atom.h>
+#include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 #include <lv2/lv2plug.in/ns/ext/buf-size/buf-size.h>
 #include <lv2/lv2plug.in/ns/ext/log/log.h>
 #include <lv2/lv2plug.in/ns/ext/log/logger.h>
 #include <lv2/lv2plug.in/ns/ext/options/options.h>
+#include <lv2/lv2plug.in/ns/ext/patch/patch.h>
 #include <lv2/lv2plug.in/ns/ext/state/state.h>
+#include <lv2/lv2plug.in/ns/ext/urid/urid.h>
 #include <lv2/lv2plug.in/ns/ext/worker/worker.h>
 #include <lv2/lv2plug.in/ns/lv2core/lv2.h>
 
@@ -46,6 +52,13 @@
 # define LV2_BUF_SIZE__nominalBlockLength "http://lv2plug.in/ns/ext/buf-size#nominalBlockLength"
 #endif
 
+#ifdef HAVE_LV2_1_8
+#define x_forge_object lv2_atom_forge_object
+#else
+#define x_forge_object lv2_atom_forge_blank
+#endif
+
+
 enum {
 	CMD_APPLY = 0,
 	CMD_FREE  = 1,
@@ -58,27 +71,50 @@ typedef struct {
 	LV2_Log_Log*   log;
 	LV2_Log_Logger logger;
 
+	/* ports */
 	float const* input[2];
 	float*       output[2];
 	float*       p_latency;
+	float*       p_ctrl[3];
 
+	/* settings */
+	bool buffered;
+	float db_dry;
+	float db_wet;
+
+	/* cfg ports */
+	LV2_Atom_Forge           forge;
+	LV2_Atom_Forge_Frame     frame;
+	const LV2_Atom_Sequence* control;
+	LV2_Atom_Sequence*       notify;
+
+	LV2_URID atom_Blank;
+	LV2_URID atom_Object;
 	LV2_URID atom_String;
 	LV2_URID atom_Path;
+	LV2_URID atom_URID;
 	LV2_URID atom_Int;
 	LV2_URID atom_Float;
 	LV2_URID atom_Bool;
 	LV2_URID atom_Vector;
+	LV2_URID bufsz_len;
+	LV2_URID patch_Get;
+	LV2_URID patch_Set;
+	LV2_URID patch_property;
+	LV2_URID patch_value;
 	LV2_URID zc_chn_delay;
 	LV2_URID zc_predelay;
 	LV2_URID zc_chn_gain;
 	LV2_URID zc_gain;
 	LV2_URID zc_sum_ins;
 	LV2_URID zc_ir;
-	LV2_URID bufsz_len;
 
 	ZeroConvoLV2::Convolver* clv_online;  ///< currently active engine
 	ZeroConvoLV2::Convolver* clv_offline; ///< inactive engine being configured
 
+	pthread_mutex_t state_lock;
+
+	/* configuration */
 	ZeroConvoLV2::Convolver::IRChannelConfig chn_cfg;
 
 	int rate;    ///< sample-rate -- constant per instance
@@ -99,6 +135,8 @@ typedef struct {
 	};
 } stateVector;
 
+static void inform_ui (zeroConvolv* self);
+static float db_to_coeff (float db);
 
 static LV2_Handle
 instantiate (const LV2_Descriptor*     descriptor,
@@ -215,11 +253,23 @@ instantiate (const LV2_Descriptor*     descriptor,
 		self->chn_in  = 1;
 		self->chn_out = 1;
 		self->chn_cfg = ZeroConvoLV2::Convolver::Mono;
+	} else if (!strcmp (descriptor->URI, ZC_PREFIX "CfgMono")) {
+		self->chn_in  = 1;
+		self->chn_out = 1;
+		self->chn_cfg = ZeroConvoLV2::Convolver::Mono;
 	} else if (!strcmp (descriptor->URI, ZC_PREFIX "Stereo")) {
 		self->chn_in  = 2;
 		self->chn_out = 2;
 		self->chn_cfg = ZeroConvoLV2::Convolver::Stereo;
+	} else if (!strcmp (descriptor->URI, ZC_PREFIX "CfgStereo")) {
+		self->chn_in  = 2;
+		self->chn_out = 2;
+		self->chn_cfg = ZeroConvoLV2::Convolver::Stereo;
 	} else if (!strcmp (descriptor->URI, ZC_PREFIX "MonoToStereo")) {
+		self->chn_in  = 1;
+		self->chn_out = 2;
+		self->chn_cfg = ZeroConvoLV2::Convolver::MonoToStereo;
+	} else if (!strcmp (descriptor->URI, ZC_PREFIX "CfgMonoToStereo")) {
 		self->chn_in  = 1;
 		self->chn_out = 2;
 		self->chn_cfg = ZeroConvoLV2::Convolver::MonoToStereo;
@@ -229,6 +279,8 @@ instantiate (const LV2_Descriptor*     descriptor,
 		return NULL;
 	}
 
+	pthread_mutex_init (&self->state_lock, NULL);
+
 	self->map         = map;
 	self->schedule    = schedule;
 	self->log         = log;
@@ -236,25 +288,33 @@ instantiate (const LV2_Descriptor*     descriptor,
 	self->block_size  = block_size;
 	self->rt_policy   = rt_policy;
 	self->rt_priority = rt_priority;
+	self->rate        = rate;
+	self->buffered    = true;
+	self->db_dry      = -60.f;
+	self->db_wet      = 0.f;
 
-	self->rate = rate;
+	lv2_atom_forge_init (&self->forge, map);
 
-	self->clv_online  = NULL;
-	self->clv_offline = NULL;
-
-	self->atom_String  = map->map (map->handle, LV2_ATOM__String);
-	self->atom_Path    = map->map (map->handle, LV2_ATOM__Path);
-	self->atom_Int     = map->map (map->handle, LV2_ATOM__Int);
-	self->atom_Float   = map->map (map->handle, LV2_ATOM__Float);
-	self->atom_Bool    = map->map (map->handle, LV2_ATOM__Bool);
-	self->atom_Vector  = map->map (map->handle, LV2_ATOM__Vector);
-	self->zc_chn_delay = map->map (map->handle, ZC_chn_delay);
-	self->zc_predelay  = map->map (map->handle, ZC_predelay);
-	self->zc_chn_gain  = map->map (map->handle, ZC_chn_gain);
-	self->zc_gain      = map->map (map->handle, ZC_gain);
-	self->zc_sum_ins   = map->map (map->handle, ZC_sum_ins);
-	self->zc_ir        = map->map (map->handle, ZC_ir);
-	self->bufsz_len    = map->map (map->handle, LV2_BUF_SIZE__nominalBlockLength);
+	self->atom_Blank     = map->map (map->handle, LV2_ATOM__Blank);
+	self->atom_Object    = map->map (map->handle, LV2_ATOM__Object);
+	self->atom_String    = map->map (map->handle, LV2_ATOM__String);
+	self->atom_Path      = map->map (map->handle, LV2_ATOM__Path);
+	self->atom_URID      = map->map (map->handle, LV2_ATOM__URID);
+	self->atom_Int       = map->map (map->handle, LV2_ATOM__Int);
+	self->atom_Float     = map->map (map->handle, LV2_ATOM__Float);
+	self->atom_Bool      = map->map (map->handle, LV2_ATOM__Bool);
+	self->atom_Vector    = map->map (map->handle, LV2_ATOM__Vector);
+	self->bufsz_len      = map->map (map->handle, LV2_BUF_SIZE__nominalBlockLength);
+	self->patch_Get      = map->map (map->handle, LV2_PATCH__Get);
+	self->patch_Set      = map->map (map->handle, LV2_PATCH__Set);
+	self->patch_property = map->map (map->handle, LV2_PATCH__property);
+	self->patch_value    = map->map (map->handle, LV2_PATCH__value);
+	self->zc_chn_delay   = map->map (map->handle, ZC_chn_delay);
+	self->zc_predelay    = map->map (map->handle, ZC_predelay);
+	self->zc_chn_gain    = map->map (map->handle, ZC_chn_gain);
+	self->zc_gain        = map->map (map->handle, ZC_gain);
+	self->zc_sum_ins     = map->map (map->handle, ZC_sum_ins);
+	self->zc_ir          = map->map (map->handle, ZC_ir);
 
 	return (LV2_Handle)self;
 }
@@ -318,7 +378,7 @@ run (LV2_Handle instance, uint32_t n_samples)
 		return;
 	}
 
-	bool buffered = false;
+	const bool buffered = self->buffered;
 
 	assert (self->clv_online->ready ());
 	*self->p_latency = buffered ? self->clv_online->latency () : 0;
@@ -365,6 +425,7 @@ cleanup (LV2_Handle instance)
 	zeroConvolv* self = (zeroConvolv*)instance;
 	delete self->clv_online;
 	delete self->clv_offline;
+	pthread_mutex_destroy (&self->state_lock);
 	free (instance);
 }
 
@@ -385,10 +446,15 @@ work_response (LV2_Handle  instance,
 	self->clv_online  = self->clv_offline;
 	self->clv_offline = old;
 
+	/* set gain coefficients for new instance */
+	self->clv_online->set_output_gain (db_to_coeff (self->db_dry), db_to_coeff (self->db_wet), false);
+
 	assert (self->clv_online != self->clv_offline || self->clv_online == NULL);
 
-	int d = CMD_FREE;
-	self->schedule->schedule_work (self->schedule->handle, sizeof (int), &d);
+	inform_ui (self);
+
+	uint32_t d = CMD_FREE;
+	self->schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
 	return LV2_WORKER_SUCCESS;
 }
 
@@ -401,22 +467,57 @@ work (LV2_Handle                  instance,
 {
 	zeroConvolv* self = (zeroConvolv*)instance;
 
-	if (size != sizeof (int)) {
+	if (size == sizeof (uint32_t)) {
+		switch (*((const uint32_t*)data)) {
+			case CMD_APPLY:
+				respond (handle, 1, "");
+				break;
+			case CMD_FREE:
+				pthread_mutex_lock (&self->state_lock);
+				delete self->clv_offline;
+				self->clv_offline = 0;
+				pthread_mutex_unlock (&self->state_lock);
+				break;
+			default:
+				return LV2_WORKER_ERR_UNKNOWN;
+				break;
+		}
+		return LV2_WORKER_SUCCESS;
+	}
+
+	const LV2_Atom* file_path = (const LV2_Atom*)data;
+	const char*     fn        = (const char*)(file_path + 1);
+	std::string     ir_path (fn, file_path->size);
+	lv2_log_note (&self->logger, "ZConvolv request open: ir=%s\n", fn);
+
+	pthread_mutex_lock (&self->state_lock);
+	if (self->clv_offline) {
+		pthread_mutex_unlock (&self->state_lock);
+		lv2_log_warning (&self->logger, "ZConvolv Work: offline instance in-use, load ignored.\n");
 		return LV2_WORKER_ERR_UNKNOWN;
 	}
 
-	switch (*((const int*)data)) {
-		case CMD_APPLY:
-			respond (handle, 1, "");
-			break;
-		case CMD_FREE:
+	bool ok = false;
+	try {
+		self->clv_offline = new ZeroConvoLV2::Convolver (ir_path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg);
+		self->clv_offline->reconfigure (self->block_size);
+		if (!(ok = self->clv_offline->ready ())) {
 			delete self->clv_offline;
 			self->clv_offline = 0;
-			break;
-		default:
-			break;
+		}
+	} catch (std::runtime_error& err) {
+		lv2_log_warning (&self->logger, "ZConvolv Convolver: %s.\n", err.what ());
+		self->clv_offline = 0;
 	}
-	return LV2_WORKER_SUCCESS;
+	pthread_mutex_unlock (&self->state_lock);
+
+	if (!ok) {
+		//lv2_log_note (&self->logger, "ZConvolv Load: configuration failed.\n");
+		return LV2_WORKER_ERR_UNKNOWN;
+	} else {
+		respond (handle, 1, "");
+		return LV2_WORKER_SUCCESS;
+	}
 }
 
 static LV2_State_Status
@@ -428,7 +529,7 @@ save (LV2_Handle                instance,
 {
 	zeroConvolv* self = (zeroConvolv*)instance;
 
-	LV2_State_Map_Path*  map_path = NULL;
+	LV2_State_Map_Path* map_path = NULL;
 #ifdef LV2_STATE__freePath
 	LV2_State_Free_Path* free_path = NULL;
 #endif
@@ -438,7 +539,7 @@ save (LV2_Handle                instance,
 			map_path = (LV2_State_Map_Path*)features[i]->data;
 		}
 #ifdef LV2_STATE__freePath
-		else if (!strcmp(features[i]->URI, LV2_STATE__freePath)) {
+		else if (!strcmp (features[i]->URI, LV2_STATE__freePath)) {
 			free_path = (LV2_State_Free_Path*)features[i]->data;
 		}
 #endif
@@ -522,7 +623,7 @@ restore (LV2_Handle                  instance,
 			map_path = (LV2_State_Map_Path*)features[i]->data;
 		}
 #ifdef LV2_STATE__freePath
-		else if (!strcmp(features[i]->URI, LV2_STATE__freePath)) {
+		else if (!strcmp (features[i]->URI, LV2_STATE__freePath)) {
 			free_path = (LV2_State_Free_Path*)features[i]->data;
 		}
 #endif
@@ -534,12 +635,6 @@ restore (LV2_Handle                  instance,
 		lv2_log_warning (&self->logger, "ZConvolv State: using run() scheduler to restore\n");
 	}
 
-	if (self->clv_offline) {
-		lv2_log_warning (&self->logger, "ZConvolv State: offline instance in-use, state ignored.\n");
-		return LV2_STATE_ERR_UNKNOWN;
-	}
-
-	bool ok = false;
 	const void* value;
 	ZeroConvoLV2::Convolver::IRSettings irs;
 
@@ -573,37 +668,51 @@ restore (LV2_Handle                  instance,
 	}
 
 	value = retrieve (handle, self->zc_ir, &size, &type, &valflags);
+	if (!value) {
+		return LV2_STATE_ERR_NO_PROPERTY;
+	}
 
-	if (value) {
-		char* path = map_path->absolute_path (map_path->handle, (const char*)value);
-		lv2_log_note (&self->logger, "ZConvolv State: ir=%s\n", path);
-		try {
-			self->clv_offline = new ZeroConvoLV2::Convolver (path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg, irs);
-			self->clv_offline->reconfigure (self->block_size);
-			ok = self->clv_offline->ready ();
-		} catch (std::runtime_error& err) {
-			lv2_log_warning (&self->logger, "ZConvolv Convolver: %s.\n", err.what ());
+	char* path = map_path->absolute_path (map_path->handle, (const char*)value);
+	lv2_log_note (&self->logger, "ZConvolv State: ir=%s\n", path);
+
+	pthread_mutex_lock (&self->state_lock);
+	if (self->clv_offline) {
+		pthread_mutex_unlock (&self->state_lock);
+		lv2_log_warning (&self->logger, "ZConvolv State: offline instance in-use, state ignored.\n");
+		return LV2_STATE_ERR_UNKNOWN;
+	}
+
+	bool ok = false;
+	try {
+		self->clv_offline = new ZeroConvoLV2::Convolver (path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg, irs);
+		self->clv_offline->reconfigure (self->block_size);
+		if (!(ok = self->clv_offline->ready ())) {
+			delete self->clv_offline;
+			self->clv_offline = 0;
 		}
+	} catch (std::runtime_error& err) {
+		lv2_log_warning (&self->logger, "ZConvolv Convolver: %s.\n", err.what ());
+		self->clv_offline = 0;
+	}
+	pthread_mutex_unlock (&self->state_lock);
+
 #ifdef LV2_STATE__freePath
-		if (free_path) {
-			free_path->free_path (free_path->handle, path);
-		} else
+	if (free_path) {
+		free_path->free_path (free_path->handle, path);
+	} else
 #endif
-		{
+	{
 #ifndef _WIN32 // https://github.com/drobilla/lilv/issues/14
-			free (path);
+		free (path);
 #endif
-		}
 	}
 
 	if (!ok) {
 		//lv2_log_note (&self->logger, "ZConvolv State: configuration failed.\n");
-		delete self->clv_offline;
-		self->clv_offline = 0;
 		return LV2_STATE_ERR_NO_PROPERTY;
 	} else {
-		int d = CMD_APPLY;
-		schedule->schedule_work (self->schedule->handle, sizeof (int), &d);
+		uint32_t d = CMD_APPLY;
+		schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
 		return LV2_STATE_SUCCESS;
 	}
 }
@@ -652,6 +761,133 @@ extension_data (const char* uri)
 	return NULL;
 }
 
+/* ****************************************************************************/
+
+static float
+db_to_coeff (float db)
+{
+	if (db <= -60.f) {
+		return 0;
+	}
+	if (db > 6.02f) {
+		return 2;
+	}
+	return powf (10.f, .05f * db);
+}
+
+static void
+inform_ui (zeroConvolv* self)
+{
+	if (!self->control || !self->notify) {
+		return;
+	}
+	if (!self->clv_online || self->clv_online->path ().empty ()) {
+		return;
+	}
+	const char* path = self->clv_online->path ().c_str ();
+
+	LV2_Atom_Forge_Frame frame;
+	lv2_atom_forge_frame_time (&self->forge, 0);
+	x_forge_object (&self->forge, &frame, 1, self->patch_Set);
+	lv2_atom_forge_property_head (&self->forge, self->patch_property, 0);
+	lv2_atom_forge_urid (&self->forge, self->zc_ir);
+	lv2_atom_forge_property_head (&self->forge, self->patch_value, 0);
+	lv2_atom_forge_path (&self->forge, path, strlen (path));
+	lv2_atom_forge_pop (&self->forge, &frame);
+}
+
+static const LV2_Atom*
+parse_patch_msg (zeroConvolv* self, const LV2_Atom_Object* obj)
+{
+	const LV2_Atom* property  = NULL;
+	const LV2_Atom* file_path = NULL;
+
+	if (obj->body.otype != self->patch_Set) {
+		return NULL;
+	}
+
+	lv2_atom_object_get (obj, self->patch_property, &property, 0);
+	if (!property || property->type != self->atom_URID) {
+		return NULL;
+	} else if (((const LV2_Atom_URID*)property)->body != self->zc_ir) {
+		return NULL;
+	}
+
+	lv2_atom_object_get (obj, self->patch_value, &file_path, 0);
+	if (!file_path || file_path->type != self->atom_Path) {
+		return NULL;
+	}
+
+	return file_path;
+}
+
+static void
+connect_port_cfg (LV2_Handle instance,
+                  uint32_t   port,
+                  void*      data)
+{
+	zeroConvolv* self = (zeroConvolv*)instance;
+
+	switch (port) {
+		case 0:
+			self->control = (const LV2_Atom_Sequence*)data;
+			break;
+		case 1:
+			self->notify = (LV2_Atom_Sequence*)data;
+			break;
+		case 2:
+		case 3:
+		case 4:
+			self->p_ctrl[port - 2] = (float*)data;
+			break;
+		default:
+			connect_port (instance, port - 5, data);
+			break;
+	}
+}
+
+static void
+run_cfg (LV2_Handle instance, uint32_t n_samples)
+{
+	zeroConvolv* self = (zeroConvolv*)instance;
+	if (!self->control || !self->notify) {
+		return;
+	}
+
+	const uint32_t capacity = self->notify->atom.size;
+	lv2_atom_forge_set_buffer (&self->forge, (uint8_t*)self->notify, capacity);
+	lv2_atom_forge_sequence_head (&self->forge, &self->frame, 0);
+
+	LV2_ATOM_SEQUENCE_FOREACH (self->control, ev)
+	{
+		const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
+		if (ev->body.type != self->atom_Blank && ev->body.type != self->atom_Object) {
+			continue;
+		}
+		if (obj->body.otype == self->patch_Get) {
+			inform_ui (self);
+		} else if (obj->body.otype == self->patch_Set) {
+			const LV2_Atom* file_path = parse_patch_msg (self, obj);
+			if (!file_path || file_path->size < 1 || file_path->size > 1024) {
+				continue;
+			}
+			self->schedule->schedule_work (self->schedule->handle, lv2_atom_total_size (file_path), file_path);
+		}
+	}
+
+	self->buffered = *self->p_ctrl[0] > 0;
+
+	if (self->clv_online && (self->db_dry != *self->p_ctrl[1] || self->db_wet != *self->p_ctrl[2])) {
+		self->db_dry = *self->p_ctrl[1];
+		self->db_wet = *self->p_ctrl[2];
+		self->clv_online->set_output_gain (db_to_coeff (self->db_dry), db_to_coeff (self->db_wet));
+	}
+
+	run (instance, n_samples);
+}
+
+/* ****************************************************************************/
+
 static const LV2_Descriptor descriptor0 = {
     ZC_PREFIX "Mono",
     instantiate,
@@ -682,6 +918,37 @@ static const LV2_Descriptor descriptor2 = {
     cleanup,
     extension_data};
 
+static const LV2_Descriptor descriptor3 = {
+    ZC_PREFIX "CfgMono",
+    instantiate,
+    connect_port_cfg,
+    activate,
+    run_cfg,
+    NULL, // deactivate,
+    cleanup,
+    extension_data};
+
+static const LV2_Descriptor descriptor4 = {
+    ZC_PREFIX "CfgStereo",
+    instantiate,
+    connect_port_cfg,
+    activate,
+    run_cfg,
+    NULL, // deactivate,
+    cleanup,
+    extension_data};
+
+static const LV2_Descriptor descriptor5 = {
+    ZC_PREFIX "CfgMonoToStereo",
+    instantiate,
+    connect_port_cfg,
+    activate,
+    run_cfg,
+    NULL, // deactivate,
+    cleanup,
+    extension_data};
+
+
 #undef LV2_SYMBOL_EXPORT
 #ifdef _WIN32
 # define LV2_SYMBOL_EXPORT __declspec(dllexport)
@@ -699,6 +966,12 @@ lv2_descriptor (uint32_t index)
 			return &descriptor1;
 		case 2:
 			return &descriptor2;
+		case 3:
+			return &descriptor3;
+		case 4:
+			return &descriptor4;
+		case 5:
+			return &descriptor5;
 		default:
 			return NULL;
 	}

@@ -9,12 +9,27 @@
 	lv2:binary <@LV2NAME@@LIB_EXT@>;
 	rdfs:seeAlso <@LV2NAME@.ttl>.
 
+<http://gareus.org/oss/lv2/@LV2NAME@#CfgMono>
+	a lv2:Plugin;
+	lv2:binary <@LV2NAME@@LIB_EXT@>;
+	rdfs:seeAlso <@LV2NAME@.ttl>.
+
 <http://gareus.org/oss/lv2/@LV2NAME@#Stereo>
 	a lv2:Plugin;
 	lv2:binary <@LV2NAME@@LIB_EXT@>;
 	rdfs:seeAlso <@LV2NAME@.ttl>.
 
+<http://gareus.org/oss/lv2/@LV2NAME@#CfgStereo>
+	a lv2:Plugin;
+	lv2:binary <@LV2NAME@@LIB_EXT@>;
+	rdfs:seeAlso <@LV2NAME@.ttl>.
+
 <http://gareus.org/oss/lv2/@LV2NAME@#MonoToStereo>
+	a lv2:Plugin;
+	lv2:binary <@LV2NAME@@LIB_EXT@>;
+	rdfs:seeAlso <@LV2NAME@.ttl>.
+
+<http://gareus.org/oss/lv2/@LV2NAME@#CfgMonoToStereo>
 	a lv2:Plugin;
 	lv2:binary <@LV2NAME@@LIB_EXT@>;
 	rdfs:seeAlso <@LV2NAME@.ttl>.
