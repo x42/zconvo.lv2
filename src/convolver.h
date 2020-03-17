@@ -72,16 +72,19 @@ public:
 			IRSettings irs = IRSettings ());
 	~Convolver ();
 
+	void reconfigure (uint32_t, bool threaded = true);
+
 	void run_buffered_mono (float*, uint32_t);
 	void run_buffered_stereo (float* L, float* R, uint32_t);
 
 	void run_mono (float*, uint32_t);
 	void run_stereo (float* L, float* R, uint32_t);
 
-	void reconfigure (uint32_t, bool threaded = true);
+	/* gain coefficients */
+	void set_output_gain (float dry, float wet, bool interpolate = true);
 
-	uint32_t latency () const { return _n_samples; }
-
+	/* status */
+	uint32_t latency   () const { return _n_samples; }
 	uint32_t n_inputs  () const { return _irc < Stereo ? 1 : 2; }
 	uint32_t n_outputs () const { return _irc == Mono  ? 1 : 2; }
 
@@ -92,6 +95,8 @@ public:
 	bool ready () const;
 
 private:
+	void output (float* dest, const float* src, uint32_t n) const;
+
 	Readable*              _fs;
 	std::vector<Readable*> _readables;
 	Convproc               _convproc;
@@ -108,6 +113,12 @@ private:
 	uint32_t _max_size;
 	uint32_t _offset;
 	bool     _configured;
+
+	mutable float _dry;
+	mutable float _wet;
+	float _dry_target;
+	float _wet_target;
+	float _a;
 };
 
 } /* namespace */
