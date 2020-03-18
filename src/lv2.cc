@@ -75,7 +75,7 @@ typedef struct {
 	float const* input[2];
 	float*       output[2];
 	float*       p_latency;
-	float*       p_ctrl[3];
+	float*       p_ctrl[4];
 
 	/* settings */
 	bool buffered;
@@ -845,10 +845,11 @@ connect_port_cfg (LV2_Handle instance,
 		case 2:
 		case 3:
 		case 4:
+		case 5:
 			self->p_ctrl[port - 2] = (float*)data;
 			break;
 		default:
-			connect_port (instance, port - 5, data);
+			connect_port (instance, port - 6, data);
 			break;
 	}
 }
@@ -882,10 +883,19 @@ run_cfg (LV2_Handle instance, uint32_t n_samples)
 		}
 	}
 
-	self->buffered = *self->p_ctrl[0] > 0;
+	self->buffered = *self->p_ctrl[1] > 0;
 
-	float db_dry = *self->p_ctrl[1];
-	float db_wet = *self->p_ctrl[2];
+	float db_dry;
+	float db_wet;
+
+	if (*self->p_ctrl[0] > 0) {
+		db_dry = *self->p_ctrl[2];
+		db_wet = *self->p_ctrl[3];
+	} else {
+		/* bypass */
+		db_dry = 0.f;
+		db_wet = -60.f;
+	}
 
 	if (self->db_dry != db_dry || self->db_wet != db_wet) {
 		self->db_dry = db_dry;

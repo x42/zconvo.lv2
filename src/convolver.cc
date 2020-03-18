@@ -449,6 +449,13 @@ Convolver::run_mono (float* buf, uint32_t n_samples)
 		done   += ns;
 		remain -= ns;
 	}
+
+	if (_wet == 0.f) {
+		/* re-align to FFT when bypassed
+		 * XXX: tail should be cleared, too
+		 */
+		_offset = 0;
+	}
 }
 
 void
@@ -495,5 +502,12 @@ Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
 		done   += ns;
 		remain -= ns;
 
+	}
+
+	if (_wet == 0.f) {
+		/* re-align to FFT when bypassed
+		 * XXX: tail should be cleared, too
+		 */
+		_offset = 0;
 	}
 }

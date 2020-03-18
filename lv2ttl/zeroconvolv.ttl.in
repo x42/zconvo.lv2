@@ -185,6 +185,16 @@ conv:CfgMono
 	] , [
 		a lv2:InputPort, lv2:ControlPort ;
 		lv2:index 2 ;
+		lv2:symbol "enable" ;
+		lv2:name "Enable";
+		lv2:default 1 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1 ;
+		lv2:portProperty lv2:integer, lv2:toggled;
+		lv2:designation lv2:enabled;
+	] , [
+		a lv2:InputPort, lv2:ControlPort ;
+		lv2:index 3 ;
 		lv2:symbol "buffered" ;
 		lv2:name "Buffered/Latent Convolution";
 		lv2:default 1 ;
@@ -193,7 +203,7 @@ conv:CfgMono
 		lv2:portProperty lv2:integer, lv2:toggled;
 	] , [
 		a lv2:InputPort , lv2:ControlPort ;
-		lv2:index 3 ;
+		lv2:index 4 ;
 		lv2:symbol "dry" ;
 		lv2:name "Dry Signal Level" ;
 		lv2:default -60.0 ;
@@ -203,7 +213,7 @@ conv:CfgMono
 		lv2:scalePoint [ rdfs:label "off";  rdf:value -60.0 ] ;
 	] , [
 		a lv2:InputPort , lv2:ControlPort ;
-		lv2:index 4 ;
+		lv2:index 5 ;
 		lv2:symbol "wet" ;
 		lv2:name "Wet Signal Level" ;
 		lv2:default   0.0 ;
@@ -213,7 +223,7 @@ conv:CfgMono
 		lv2:scalePoint [ rdfs:label "off";  rdf:value -60.0 ] ;
 	] , [
 		a lv2:ControlPort, lv2:OutputPort;
-		lv2:index 5;
+		lv2:index 6;
 		lv2:symbol "latency";
 		lv2:name "Signal Latency";
 		lv2:minimum 0;
@@ -222,12 +232,12 @@ conv:CfgMono
 		units:unit units:frame;
 	] , [
 		a lv2:AudioPort, lv2:OutputPort;
-		lv2:index 6;
+		lv2:index 7;
 		lv2:symbol "out";
 		lv2:name "Out"
 	] , [
 		a lv2:AudioPort, lv2:InputPort;
-		lv2:index 7;
+		lv2:index 8;
 		lv2:symbol "in";
 		lv2:name "In"
 	];
@@ -265,6 +275,16 @@ conv:CfgStereo
 	] , [
 		a lv2:InputPort, lv2:ControlPort ;
 		lv2:index 2 ;
+		lv2:symbol "enable" ;
+		lv2:name "Enable";
+		lv2:default 1 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1 ;
+		lv2:portProperty lv2:integer, lv2:toggled;
+		lv2:designation lv2:enabled;
+	] , [
+		a lv2:InputPort, lv2:ControlPort ;
+		lv2:index 3 ;
 		lv2:symbol "buffered" ;
 		lv2:name "Buffered/Latent Convolution";
 		lv2:default 1 ;
@@ -273,7 +293,7 @@ conv:CfgStereo
 		lv2:portProperty lv2:integer, lv2:toggled;
 	] , [
 		a lv2:InputPort , lv2:ControlPort ;
-		lv2:index 3 ;
+		lv2:index 4 ;
 		lv2:symbol "dry" ;
 		lv2:name "Dry Signal Level" ;
 		lv2:default -60.0 ;
@@ -283,7 +303,7 @@ conv:CfgStereo
 		lv2:scalePoint [ rdfs:label "off";  rdf:value -60.0 ] ;
 	] , [
 		a lv2:InputPort , lv2:ControlPort ;
-		lv2:index 4 ;
+		lv2:index 5 ;
 		lv2:symbol "wet" ;
 		lv2:name "Wet Signal Level" ;
 		lv2:default   0.0 ;
@@ -293,7 +313,7 @@ conv:CfgStereo
 		lv2:scalePoint [ rdfs:label "off";  rdf:value -60.0 ] ;
 	] , [
 		a lv2:ControlPort, lv2:OutputPort;
-		lv2:index 5;
+		lv2:index 6;
 		lv2:symbol "latency";
 		lv2:name "Signal Latency";
 		lv2:minimum 0;
@@ -302,25 +322,25 @@ conv:CfgStereo
 		units:unit units:frame;
 	] , [
 		a lv2:AudioPort, lv2:OutputPort;
-		lv2:index 6;
+		lv2:index 7;
 		lv2:symbol "out_1";
 		lv2:name "OutL";
 		lv2:designation pg:left
 	] , [
 		a lv2:AudioPort, lv2:InputPort;
-		lv2:index 7;
+		lv2:index 8;
 		lv2:symbol "in_1";
 		lv2:name "InL";
 		lv2:designation pg:left
 	] , [
 		a lv2:AudioPort, lv2:OutputPort;
-		lv2:index 8;
+		lv2:index 9;
 		lv2:symbol "out_2";
 		lv2:name "OutR";
 		lv2:designation pg:right
 	] , [
 		a lv2:AudioPort, lv2:InputPort;
-		lv2:index 9;
+		lv2:index 10;
 		lv2:symbol "in_2";
 		lv2:name "InR";
 		lv2:designation pg:right
@@ -359,6 +379,16 @@ conv:CfgMonoToStereo
 	] , [
 		a lv2:InputPort, lv2:ControlPort ;
 		lv2:index 2 ;
+		lv2:symbol "enable" ;
+		lv2:name "Enable";
+		lv2:default 1 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1 ;
+		lv2:portProperty lv2:integer, lv2:toggled;
+		lv2:designation lv2:enabled;
+	] , [
+		a lv2:InputPort, lv2:ControlPort ;
+		lv2:index 3 ;
 		lv2:symbol "buffered" ;
 		lv2:name "Buffered/Latent Convolution";
 		lv2:default 1 ;
@@ -367,7 +397,7 @@ conv:CfgMonoToStereo
 		lv2:portProperty lv2:integer, lv2:toggled;
 	] , [
 		a lv2:InputPort , lv2:ControlPort ;
-		lv2:index 3 ;
+		lv2:index 4 ;
 		lv2:symbol "dry" ;
 		lv2:name "Dry Signal Level" ;
 		lv2:default -60.0 ;
@@ -377,7 +407,7 @@ conv:CfgMonoToStereo
 		lv2:scalePoint [ rdfs:label "off";  rdf:value -60.0 ] ;
 	] , [
 		a lv2:InputPort , lv2:ControlPort ;
-		lv2:index 4 ;
+		lv2:index 5 ;
 		lv2:symbol "wet" ;
 		lv2:name "Wet Signal Level" ;
 		lv2:default   0.0 ;
@@ -387,7 +417,7 @@ conv:CfgMonoToStereo
 		lv2:scalePoint [ rdfs:label "off";  rdf:value -60.0 ] ;
 	] , [
 		a lv2:ControlPort, lv2:OutputPort;
-		lv2:index 5;
+		lv2:index 6;
 		lv2:symbol "latency";
 		lv2:name "Signal Latency";
 		lv2:minimum 0;
@@ -396,18 +426,18 @@ conv:CfgMonoToStereo
 		units:unit units:frame;
 	] , [
 		a lv2:AudioPort, lv2:OutputPort;
-		lv2:index 6;
+		lv2:index 7;
 		lv2:symbol "out_1";
 		lv2:name "OutL";
 		lv2:designation pg:left
 	] , [
 		a lv2:AudioPort, lv2:InputPort;
-		lv2:index 7;
+		lv2:index 8;
 		lv2:symbol "in";
 		lv2:name "In"
 	] , [
 		a lv2:AudioPort, lv2:OutputPort;
-		lv2:index 8;
+		lv2:index 9;
 		lv2:symbol "out_2";
 		lv2:name "OutR";
 		lv2:designation pg:right
