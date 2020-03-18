@@ -82,6 +82,9 @@ typedef struct {
 	float db_dry;
 	float db_wet;
 
+	float dry_coeff;
+	float dry_target;
+
 	/* cfg ports */
 	LV2_Atom_Forge           forge;
 	LV2_Atom_Forge_Frame     frame;
@@ -124,6 +127,7 @@ typedef struct {
 	uint32_t block_size;
 	int      rt_policy;
 	int      rt_priority;
+	float    tc64;
 } zeroConvolv;
 
 typedef struct {
@@ -290,8 +294,11 @@ instantiate (const LV2_Descriptor*     descriptor,
 	self->rt_priority = rt_priority;
 	self->rate        = rate;
 	self->buffered    = true;
-	self->db_dry      = -60.f;
 	self->db_wet      = 0.f;
+	self->db_dry      = -60.f;
+	self->dry_coeff   = 0.f;
+	self->dry_target  = 0.f;
+	self->tc64        = 2950.f / rate; // ~20Hz for 90%
 
 	lv2_atom_forge_init (&self->forge, map);
 
@@ -877,13 +884,83 @@ run_cfg (LV2_Handle instance, uint32_t n_samples)
 
 	self->buffered = *self->p_ctrl[0] > 0;
 
-	if (self->clv_online && (self->db_dry != *self->p_ctrl[1] || self->db_wet != *self->p_ctrl[2])) {
-		self->db_dry = *self->p_ctrl[1];
-		self->db_wet = *self->p_ctrl[2];
-		self->clv_online->set_output_gain (db_to_coeff (self->db_dry), db_to_coeff (self->db_wet));
+	float db_dry = *self->p_ctrl[1];
+	float db_wet = *self->p_ctrl[2];
+
+	if (self->db_dry != db_dry || self->db_wet != db_wet) {
+		self->db_dry = db_dry;
+		self->db_wet = db_wet;
+		self->dry_target = db_to_coeff (db_dry);
+
+		if (self->clv_online) {
+			self->clv_online->set_output_gain (self->dry_target, db_to_coeff (db_wet));
+			self->dry_coeff = self->dry_target; // assume convolver completes interpolation
+		}
 	}
 
-	run (instance, n_samples);
+	if (self->clv_online) {
+		run (instance, n_samples);
+		return;
+	}
+
+	/* forward audio, apply gain */
+	*self->p_latency = 0;
+
+	copy_no_inplace_buffers (self->output[0], self->input[0], n_samples);
+
+	if (self->chn_in == 2) {
+		assert (self->chn_out == 2);
+		copy_no_inplace_buffers (self->output[1], self->input[1], n_samples);
+	} else if (self->chn_out == 2) {
+		assert (self->chn_in == 1);
+		copy_no_inplace_buffers (self->output[1], self->input[0], n_samples);
+	}
+
+	/* apply fixed gain */
+	if (self->dry_coeff == self->dry_target) {
+		if (self->dry_coeff == 1.f) {
+			; /* relax */
+		} else if (self->dry_coeff == 0.f) {
+			for (int c = 0; c < self->chn_out; ++c) {
+				memset (self->output[c], 0, sizeof (float) * n_samples);
+			}
+			return;
+		} else {
+			const float gain = self->dry_coeff;
+			for (int c = 0; c < self->chn_out; ++c) {
+				for (uint32_t i = 0; i < n_samples; ++i) {
+					self->output[c][i] *= gain;
+				}
+			}
+		}
+		return;
+	}
+
+	/* interpolate gain */
+	const float alpha  = self->tc64;
+	uint32_t    remain = n_samples;
+	uint32_t    done   = 0;
+	float       cur     = self->dry_coeff;
+	float       tgt     = self->dry_target;
+
+	while (remain > 0) {
+		uint32_t ns = std::min (remain, (uint32_t)64);
+		cur += alpha * (tgt - cur) + 1e-10f;
+
+		for (int c = 0; c < self->chn_out; ++c) {
+			for (uint32_t i = 0; i < ns; ++i) {
+				self->output[c][done + i] *= cur;
+			}
+		}
+		remain -= ns;
+		done   += ns;
+	}
+
+	if (fabsf (cur - tgt) < 1e-5f) {
+		self->dry_coeff = self->dry_target;
+	} else {
+		self->dry_coeff = cur;
+	}
 }
 
 /* ****************************************************************************/
