@@ -26,6 +26,23 @@
 
 namespace ZeroConvoLV2
 {
+
+class DelayLine
+{
+public:
+	DelayLine ();
+	~DelayLine ();
+	void clear ();
+	void reset (uint32_t delay);
+	void run (float* buf, uint32_t n_samples);
+
+private:
+	float*   _buf;
+	bool     _written;
+	uint32_t _delay;
+	uint32_t _pos;
+};
+
 class TimeDomainConvolver
 {
 public:
@@ -109,6 +126,7 @@ private:
 	IRSettings      _ir_settings;
 
 	TimeDomainConvolver _tdc[4];
+	DelayLine           _dly[2];
 
 	uint32_t _n_samples;
 	uint32_t _max_size;

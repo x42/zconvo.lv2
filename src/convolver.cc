@@ -18,12 +18,58 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "audiosrc.h"
 #include "convolver.h"
 
 using namespace ZeroConvoLV2;
+
+DelayLine::DelayLine ()
+	: _buf (0)
+	, _written (false)
+	, _delay (0)
+	, _pos (0)
+{
+}
+
+DelayLine::~DelayLine ()
+{
+	free (_buf);
+}
+
+void
+DelayLine::clear ()
+{
+	if (!_written || !_buf) {
+		return;
+	}
+	memset (_buf, 0, _delay * sizeof (float));
+	_written = false;
+}
+
+void
+DelayLine::reset (uint32_t delay)
+{
+	free (_buf);
+	_buf = (float*) calloc (1 + delay, sizeof (float));
+	_delay = _buf ? delay : 0;
+	_pos = 0;
+}
+
+void
+DelayLine::run (float* buf, uint32_t n_samples)
+{
+	_written = n_samples > 0;
+	for (uint32_t i = 0 ; i < n_samples; ++i) {
+		_buf[_pos] = buf[i];
+		if (++_pos > _delay) {
+			_pos = 0;
+		}
+		buf[i] = _buf[_pos] ;
+	}
+}
 
 TimeDomainConvolver::TimeDomainConvolver ()
 {
@@ -207,6 +253,9 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 		_tdc[i].reset ();
 	}
 
+	_dly[0].reset (_n_samples);
+	_dly[1].reset (_n_samples);
+
 	for (uint32_t c = 0; c < n_imp && rv == 0; ++c) {
 		int ir_c = c % n_chn;
 		int io_o = c % n_outputs ();
@@ -370,6 +419,12 @@ Convolver::run_buffered_mono (float* buf, uint32_t n_samples)
 
 		memcpy (&in[_offset], &buf[done], sizeof (float) * ns);
 
+		if (_dry == _dry_target && _dry == 0) {
+			_dly[0].clear ();
+		} else {
+			_dly[0].run (&buf[done], ns);
+		}
+
 		interpolate_gain ();
 		output (&buf[done], &out[_offset], ns);
 
@@ -399,6 +454,14 @@ Convolver::run_buffered_stereo (float* left, float* right, uint32_t n_samples)
 		memcpy (&_convproc.inpdata (0)[_offset], &left[done], sizeof (float) * ns);
 		if (_irc >= Stereo) {
 			memcpy (&_convproc.inpdata (1)[_offset], &right[done], sizeof (float) * ns);
+		}
+
+		if (_dry == _dry_target && _dry == 0) {
+			_dly[0].clear ();
+			_dly[1].clear ();
+		} else {
+			_dly[0].run (&left[done], ns);
+			_dly[1].run (&right[done], ns);
 		}
 
 		interpolate_gain ();
