@@ -95,6 +95,7 @@ public:
 	bool ready () const;
 
 private:
+	void interpolate_gain ();
 	void output (float* dest, const float* src, uint32_t n) const;
 
 	Readable*              _fs;
@@ -114,8 +115,8 @@ private:
 	uint32_t _offset;
 	bool     _configured;
 
-	mutable float _dry;
-	mutable float _wet;
+	float _dry;
+	float _wet;
 	float _dry_target;
 	float _wet_target;
 	float _a;

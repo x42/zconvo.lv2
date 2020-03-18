@@ -323,9 +323,8 @@ Convolver::set_output_gain (float dry, float wet, bool interpolate)
 }
 
 void
-Convolver::output (float* dst, const float* src, uint32_t n) const
+Convolver::interpolate_gain ()
 {
-	/* interpolate */
 	if (_dry != _dry_target) {
 		_dry += _a * (_dry_target - _dry) + 1e-10f;
 		if (fabsf (_dry - _dry_target) < 1e-5f) {
@@ -338,7 +337,11 @@ Convolver::output (float* dst, const float* src, uint32_t n) const
 			_wet = _wet_target;
 		}
 	}
+}
 
+void
+Convolver::output (float* dst, const float* src, uint32_t n) const
+{
 	if (_dry == 0.f && _wet == 1.f) {
 		memcpy (dst, src, n * sizeof (float));
 	} else {
@@ -366,6 +369,8 @@ Convolver::run_buffered_mono (float* buf, uint32_t n_samples)
 		float const* const out = _convproc.outdata (/*channel*/ 0);
 
 		memcpy (&in[_offset], &buf[done], sizeof (float) * ns);
+
+		interpolate_gain ();
 		output (&buf[done], &out[_offset], ns);
 
 		_offset += ns;
@@ -395,6 +400,8 @@ Convolver::run_buffered_stereo (float* left, float* right, uint32_t n_samples)
 		if (_irc >= Stereo) {
 			memcpy (&_convproc.inpdata (1)[_offset], &right[done], sizeof (float) * ns);
 		}
+
+		interpolate_gain ();
 		output (&left[done], &_convproc.outdata (0)[_offset], ns);
 		output (&right[done], &_convproc.outdata (1)[_offset], ns);
 
@@ -428,12 +435,14 @@ Convolver::run_mono (float* buf, uint32_t n_samples)
 
 		if (_offset + ns == _n_samples) {
 			_convproc.process ();
+			interpolate_gain ();
 			output (&buf[done], &out[_offset], ns);
 			_offset = 0;
 		} else {
 			assert (remain == ns);
 			_convproc.tailonly (_offset + ns);
 			_tdc[0].run (&out[_offset], &buf[done], ns);
+			interpolate_gain ();
 			output (&buf[done], &out[_offset], ns);
 			_offset += ns;
 		}
@@ -464,6 +473,7 @@ Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
 
 		if (_offset + ns == _n_samples) {
 			_convproc.process ();
+			interpolate_gain ();
 			output (&left[done],  &outL[_offset], ns);
 			output (&right[done], &outR[_offset], ns);
 			_offset = 0;
@@ -477,6 +487,7 @@ Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
 			_tdc[2].run (&outR[_offset], &left[done], ns);
 			_tdc[3].run (&outR[_offset], &right[done], ns);
 
+			interpolate_gain ();
 			output (&left[done],  &outL[_offset], ns);
 			output (&right[done], &outR[_offset], ns);
 			_offset += ns;
