@@ -795,6 +795,12 @@ Convlevel::readtail (uint32_t n_samples)
 	uint32_t opind   = _opind;
 	uint32_t outoffs = _outoffs + _outsize;
 	if (outoffs == _parsize) {
+
+		while (_wait) {
+			_done.wait ();
+			_wait--;
+		}
+
 		outoffs = 0;
 		if (++opind == 3) {
 			opind = 0;
