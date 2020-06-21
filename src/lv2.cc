@@ -105,6 +105,7 @@ typedef struct {
 	LV2_URID patch_Set;
 	LV2_URID patch_property;
 	LV2_URID patch_value;
+	LV2_URID state_Changed;
 	LV2_URID zc_chn_delay;
 	LV2_URID zc_predelay;
 	LV2_URID zc_chn_gain;
@@ -114,6 +115,8 @@ typedef struct {
 
 	ZeroConvoLV2::Convolver* clv_online;  ///< currently active engine
 	ZeroConvoLV2::Convolver* clv_offline; ///< inactive engine being configured
+
+	bool pset_dirty; // unset before scheduling work for state-restore.
 
 	pthread_mutex_t state_lock;
 
@@ -139,7 +142,7 @@ typedef struct {
 	};
 } stateVector;
 
-static void inform_ui (zeroConvolv* self);
+static void inform_ui (zeroConvolv* self, bool mark_dirty);
 static float db_to_coeff (float db);
 
 static LV2_Handle
@@ -299,6 +302,7 @@ instantiate (const LV2_Descriptor*     descriptor,
 	self->dry_coeff   = 0.f;
 	self->dry_target  = 0.f;
 	self->tc64        = 2950.f / rate; // ~20Hz for 90%
+	self->pset_dirty  = true;
 
 	lv2_atom_forge_init (&self->forge, map);
 
@@ -316,6 +320,11 @@ instantiate (const LV2_Descriptor*     descriptor,
 	self->patch_Set      = map->map (map->handle, LV2_PATCH__Set);
 	self->patch_property = map->map (map->handle, LV2_PATCH__property);
 	self->patch_value    = map->map (map->handle, LV2_PATCH__value);
+#ifdef LV2_STATE__StateChanged
+	self->state_Changed  = map->map (map->handle, LV2_STATE__StateChanged);
+#else
+	self->state_Changed  = map->map (map->handle, "http://lv2plug.in/ns/ext/state#StateChanged");
+#endif
 	self->zc_chn_delay   = map->map (map->handle, ZC_chn_delay);
 	self->zc_predelay    = map->map (map->handle, ZC_predelay);
 	self->zc_chn_gain    = map->map (map->handle, ZC_chn_gain);
@@ -458,7 +467,8 @@ work_response (LV2_Handle  instance,
 
 	assert (self->clv_online != self->clv_offline || self->clv_online == NULL);
 
-	inform_ui (self);
+	inform_ui (self, self->pset_dirty);
+	self->pset_dirty = true;
 
 	uint32_t d = CMD_FREE;
 	self->schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
@@ -718,6 +728,7 @@ restore (LV2_Handle                  instance,
 		//lv2_log_note (&self->logger, "ZConvolv State: configuration failed.\n");
 		return LV2_STATE_ERR_NO_PROPERTY;
 	} else {
+		self->pset_dirty = false;
 		uint32_t d = CMD_APPLY;
 		schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
 		return LV2_STATE_SUCCESS;
@@ -783,7 +794,7 @@ db_to_coeff (float db)
 }
 
 static void
-inform_ui (zeroConvolv* self)
+inform_ui (zeroConvolv* self, bool mark_dirty)
 {
 	if (!self->control || !self->notify) {
 		return;
@@ -801,6 +812,12 @@ inform_ui (zeroConvolv* self)
 	lv2_atom_forge_property_head (&self->forge, self->patch_value, 0);
 	lv2_atom_forge_path (&self->forge, path, strlen (path));
 	lv2_atom_forge_pop (&self->forge, &frame);
+
+	if (mark_dirty) {
+		lv2_atom_forge_frame_time (&self->forge, 0);
+		x_forge_object (&self->forge, &frame, 1, self->state_Changed);
+		lv2_atom_forge_pop (&self->forge, &frame);
+	}
 }
 
 static const LV2_Atom*
@@ -872,7 +889,7 @@ run_cfg (LV2_Handle instance, uint32_t n_samples)
 			continue;
 		}
 		if (obj->body.otype == self->patch_Get) {
-			inform_ui (self);
+			inform_ui (self, false);
 		} else if (obj->body.otype == self->patch_Set) {
 			const LV2_Atom* file_path = parse_patch_msg (self, obj);
 			if (!file_path || file_path->size < 1 || file_path->size > 1024) {
