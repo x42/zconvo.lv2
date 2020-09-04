@@ -44,7 +44,7 @@ else
 endif
 
 targets += $(BUILDDIR)$(LV2NAME)$(LIB_EXT)
-override CXXFLAGS += -fvisibility=hidden
+override CXXFLAGS += -fvisibility=hidden -pthread
 
 ###############################################################################
 # extract versions
