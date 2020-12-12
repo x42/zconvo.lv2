@@ -19,6 +19,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <string>
 
 #include <samplerate.h>
 #include <sndfile.h>
