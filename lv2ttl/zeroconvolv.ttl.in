@@ -28,11 +28,11 @@ state:freePath a lv2:Feature .
 <http://gareus.org/oss/lv2/zeroconvolv>
 	a doap:Project;
 	doap:maintainer <http://gareus.org/rgareus#me>;
-	doap:name "LV2 Convolution".
+	doap:name "x42 - LV2 Convolution".
 
 conv:Mono
-	a lv2:Plugin;
-	doap:name "Preset Convolver Mono";
+	a lv2:Plugin, lv2:ReverbPlugin;
+	doap:name "x42 - Preset Convolver Mono";
 	lv2:project <http://gareus.org/oss/lv2/zeroconvolv> ;
 	doap:license <http://usefulinc.com/doap/licenses/gpl>;
 	@VERSION@
@@ -65,8 +65,8 @@ conv:Mono
 	.
 
 conv:Stereo
-	a lv2:Plugin;
-	doap:name "Preset Convolver Stereo";
+	a lv2:Plugin, lv2:ReverbPlugin;
+	doap:name "x42 - Preset Convolver Stereo";
 	doap:license <http://usefulinc.com/doap/licenses/gpl>;
 	lv2:project <http://gareus.org/oss/lv2/zeroconvolv> ;
 	@VERSION@
@@ -113,8 +113,8 @@ conv:Stereo
 	.
 
 conv:MonoToStereo
-	a lv2:Plugin;
-	doap:name "Preset Convolver Mono => Stereo";
+	a lv2:Plugin, lv2:ReverbPlugin;
+	doap:name "x42 - Preset Convolver Mono => Stereo";
 	doap:license <http://usefulinc.com/doap/licenses/gpl>;
 	lv2:project <http://gareus.org/oss/lv2/zeroconvolv> ;
 	@VERSION@
@@ -154,8 +154,8 @@ conv:MonoToStereo
 	.
 
 conv:CfgMono
-	a lv2:Plugin;
-	doap:name "IR Convolver Mono";
+	a lv2:Plugin, lv2:ReverbPlugin;
+	doap:name "x42 - IR Convolver Mono";
 	lv2:project <http://gareus.org/oss/lv2/zeroconvolv> ;
 	doap:license <http://usefulinc.com/doap/licenses/gpl>;
 	@VERSION@
@@ -234,8 +234,8 @@ conv:CfgMono
 	.
 
 conv:CfgStereo
-	a lv2:Plugin;
-	doap:name "IR Convolver Stereo";
+	a lv2:Plugin, lv2:ReverbPlugin;
+	doap:name "x42 - IR Convolver Stereo";
 	lv2:project <http://gareus.org/oss/lv2/zeroconvolv> ;
 	doap:license <http://usefulinc.com/doap/licenses/gpl>;
 	@VERSION@
@@ -328,8 +328,8 @@ conv:CfgStereo
 	.
 
 conv:CfgMonoToStereo
-	a lv2:Plugin;
-	doap:name "IR Convolver Mono => Stereo";
+	a lv2:Plugin, lv2:ReverbPlugin;
+	doap:name "x42 - IR Convolver Mono => Stereo";
 	lv2:project <http://gareus.org/oss/lv2/zeroconvolv> ;
 	doap:license <http://usefulinc.com/doap/licenses/gpl>;
 	@VERSION@
