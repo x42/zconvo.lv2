@@ -261,7 +261,8 @@ Convproc::start_process (int abspri, int policy)
 	}
 
 	while (!check_started ((_minpart == _quantum) ? 1 : 0)) {
-		usleep (20000);
+		usleep (40000);
+		sched_yield ();
 	}
 
 	_state = ST_PROC;
@@ -350,7 +351,8 @@ Convproc::cleanup (void)
 	uint32_t k;
 
 	while (!check_stop ()) {
-		usleep (20000);
+		usleep (40000);
+		sched_yield ();
 	}
 	for (k = 0; k < _ninp; k++) {
 		delete[] _inpbuff[k];
