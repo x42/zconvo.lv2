@@ -394,6 +394,7 @@ public:
 
 	int stop_process (void);
 
+	bool check_started (uint32_t);
 	bool check_stop (void);
 
 	int cleanup (void);
