@@ -40,8 +40,6 @@ IRs on demand.
 Install
 -------
 
-Don't. The plugin is still work-in-progress.
-
 ```bash
 make
 #sudo make install PREFIX=/usr
