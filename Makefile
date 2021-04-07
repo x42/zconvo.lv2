@@ -8,7 +8,7 @@ CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
 PKG_CONFIG ?= pkg-config
 STRIP      ?= strip
 
-conv_VERSION ?= $(shell (git describe --tags HEAD || echo "0") | sed 's/-g.*$$//;s/^v//')
+zconvo_VERSION ?= $(shell (git describe --tags HEAD || echo "0") | sed 's/-g.*$$//;s/^v//')
 
 ###############################################################################
 BUILDDIR=build/
@@ -48,7 +48,7 @@ override CXXFLAGS += -fvisibility=hidden -pthread
 
 ###############################################################################
 # extract versions
-LV2VERSION=$(conv_VERSION)
+LV2VERSION=$(zconvo_VERSION)
 include git2lv2.mk
 
 ###############################################################################
