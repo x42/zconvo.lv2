@@ -118,6 +118,7 @@ TimeDomainConvolver::configure (Readable* r, float gain, uint32_t delay)
 			_ir[i] *= gain;
 		}
 	}
+	_enabled = true;
 }
 
 void
