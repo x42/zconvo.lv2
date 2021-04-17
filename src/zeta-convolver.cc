@@ -383,7 +383,7 @@ bool
 Convproc::check_started (uint32_t k)
 {
 	for (; (k < _nlevels) && (_convlev[k]->_stat == Convlevel::ST_PROC); k++) ;
-	return (k == _nlevels) ? true : false;
+	return (k == _nlevels || _nlevels == 0) ? true : false;
 }
 
 bool
