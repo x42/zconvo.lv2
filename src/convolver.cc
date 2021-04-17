@@ -556,13 +556,15 @@ Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
 			_offset = 0;
 		} else {
 			assert (remain == ns);
-
 			_convproc.tailonly (_offset + ns);
 
-			_tdc[0].run (&outL[_offset], &left[done], ns);
-			_tdc[1].run (&outL[_offset], &right[done], ns);
-			_tdc[2].run (&outR[_offset], &left[done], ns);
-			_tdc[3].run (&outR[_offset], &right[done], ns);
+			_tdc[0].run (outL, _convproc.inpdata (0), _offset + ns);
+			_tdc[2].run (outR, _convproc.inpdata (0), _offset + ns);
+
+			if (_irc >= Stereo) {
+				_tdc[1].run (outL, _convproc.inpdata (1), _offset + ns);
+				_tdc[3].run (outR, _convproc.inpdata (1), _offset + ns);
+			}
 
 			interpolate_gain ();
 			output (&left[done],  &outL[_offset], ns);
