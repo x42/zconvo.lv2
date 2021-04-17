@@ -45,23 +45,36 @@ DelayLine::clear ()
 	if (!_written || !_buf) {
 		return;
 	}
-	memset (_buf, 0, _delay * sizeof (float));
+	memset (_buf, 0, (1 + _delay) * sizeof (float));
 	_written = false;
 }
 
 void
 DelayLine::reset (uint32_t delay)
 {
-	free (_buf);
-	_buf = (float*) calloc (1 + delay, sizeof (float));
-	_delay = _buf ? delay : 0;
-	_pos = 0;
+	if (delay == 0) {
+		free (_buf);
+		_buf   = NULL;
+		_delay = 0;
+		_pos   = 0;
+	} else if (_delay == delay) {
+		memset (_buf, 0, (1 + delay) * sizeof (float));
+		_pos = 0;
+		_written = false;
+	} else {
+		free (_buf);
+		_buf   = (float*) calloc (1 + delay, sizeof (float));
+		_delay = _buf ? delay : 0;
+		_pos   = 0;
+		_written = false;
+	}
 }
 
 void
 DelayLine::run (float* buf, uint32_t n_samples)
 {
 	_written = n_samples > 0;
+	assert (buf && _delay > 0);
 	for (uint32_t i = 0 ; i < n_samples; ++i) {
 		_buf[_pos] = buf[i];
 		if (++_pos > _delay) {
