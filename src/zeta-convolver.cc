@@ -22,6 +22,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __APPLE__
+#include <mach/mach_time.h>
+#include <mach/thread_act.h>
+#include <mach/thread_policy.h>
+#endif
+
 #include "zeta-convolver.h"
 
 float Convproc::_mac_cost = 1.0f;
@@ -244,7 +250,7 @@ Convproc::reset (void)
 }
 
 int
-Convproc::start_process (int abspri, int policy)
+Convproc::start_process (int abspri, int policy, double period_ns)
 {
 	uint32_t k;
 
@@ -257,7 +263,7 @@ Convproc::start_process (int abspri, int policy)
 	reset ();
 
 	for (k = (_minpart == _quantum) ? 1 : 0; k < _nlevels; k++) {
-		_convlev[k]->start (abspri, policy);
+		_convlev[k]->start (abspri, policy, period_ns);
 	}
 
 	while (!check_started ((_minpart == _quantum) ? 1 : 0)) {
@@ -580,7 +586,7 @@ Convlevel::reset (uint32_t inpsize,
 }
 
 void
-Convlevel::start (int abspri, int policy)
+Convlevel::start (int abspri, int policy, double period_ns)
 {
 	int                min, max;
 	pthread_attr_t     attr;
@@ -608,6 +614,23 @@ Convlevel::start (int abspri, int policy)
 	pthread_attr_setstacksize (&attr, 0x10000);
 	pthread_create (&_pthr, &attr, static_main, this);
 	pthread_attr_destroy (&attr);
+
+#ifdef __APPLE__
+	mach_timebase_info_data_t timebase;
+	if (KERN_SUCCESS == mach_timebase_info (&timebase)) {
+		thread_time_constraint_policy_data_t ttcp;
+
+		ttcp.period      = period_ns      *  timebase.denom / timebase.numer;
+		ttcp.computation = period_ns * .3 *  timebase.denom / timebase.numer;
+		ttcp.constraint  = period_ns * .9 *  timebase.denom / timebase.numer;
+		ttcp.preemptible = true;
+
+		thread_policy_set (pthread_mach_thread_np (_pthr),
+		                   THREAD_TIME_CONSTRAINT_POLICY,
+		                   (thread_policy_t)&ttcp,
+		                   THREAD_TIME_CONSTRAINT_POLICY_COUNT);
+	}
+#endif
 }
 
 void

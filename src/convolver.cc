@@ -146,6 +146,7 @@ Convolver::Convolver (
 	, _sched_policy (sched_policy)
 	, _sched_priority (sched_priority)
 	, _ir_settings (irs)
+	, _samplerate (sample_rate)
 	, _n_samples (0)
 	, _max_size (0)
 	, _offset (0)
@@ -349,7 +350,8 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 	}
 
 	if (rv == 0) {
-		rv = _convproc.start_process (_sched_priority, _sched_policy);
+		double period_ns = 1e9 *  block_size / _samplerate;
+		rv = _convproc.start_process (_sched_priority, _sched_policy, period_ns);
 	}
 
 	assert (rv == 0); // bail out in debug builds

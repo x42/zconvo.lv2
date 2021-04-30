@@ -128,6 +128,7 @@ private:
 	TimeDomainConvolver _tdc[4];
 	DelayLine           _dly[2];
 
+	uint32_t _samplerate;
 	uint32_t _n_samples;
 	uint32_t _max_size;
 	uint32_t _offset;

@@ -266,7 +266,7 @@ private:
 	            float**  inpbuff,
 	            float**  outbuff);
 
-	void start (int absprio, int policy);
+	void start (int absprio, int policy, double period_ns);
 
 	void process ();
 
@@ -387,7 +387,7 @@ public:
 
 	int reset (void);
 
-	int start_process (int abspri, int policy);
+	int start_process (int abspri, int policy, double period_ns);
 
 	int process ();
 	int tailonly (uint32_t n_samples);
