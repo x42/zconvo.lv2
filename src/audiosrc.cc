@@ -90,6 +90,8 @@ SrcSource::read (float* dst, uint64_t pos, uint64_t cnt, uint32_t) const
 	_src_data.data_out      = dst;
 
 	if ((err = src_process (_src_state, &_src_data))) {
+		std::string msg (std::string ("Error: src_process failed. ") + std::string (src_strerror (err)));
+		throw std::runtime_error (msg);
 		return 0;
 	}
 
