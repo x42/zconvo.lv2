@@ -616,6 +616,26 @@ Convlevel::start (int abspri, int policy, double period_ns)
 	pthread_attr_destroy (&attr);
 
 #ifdef __APPLE__
+	/* https://opensource.apple.com/source/xnu/xnu-4570.61.1/osfmk/mach/thread_policy.h.auto.html */
+
+	/* Ask for fixed priority */
+	thread_extended_policy_data_t tep;
+	tep.timeshare = false;
+
+	thread_policy_set (pthread_mach_thread_np (_pthr),
+	                   THREAD_EXTENDED_POLICY,
+	                   (thread_policy_t)&tep,
+	                   THREAD_EXTENDED_POLICY_COUNT);
+
+	/* relative value of the computation compared to the other threads in the task. */
+	thread_precedence_policy_data_t tpp;
+	tpp.importance = 60; // MAXPRI_USER - 3
+
+	thread_policy_set (pthread_mach_thread_np (_pthr),
+	                   THREAD_PRECEDENCE_POLICY,
+	                   (thread_policy_t)&tpp,
+	                   THREAD_PRECEDENCE_POLICY_COUNT);
+
 	mach_timebase_info_data_t timebase;
 	if (KERN_SUCCESS == mach_timebase_info (&timebase)) {
 		thread_time_constraint_policy_data_t ttcp;
