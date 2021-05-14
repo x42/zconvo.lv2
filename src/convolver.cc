@@ -295,7 +295,7 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 		assert (r->n_channels () == 1);
 
 		const float    chan_gain  = _ir_settings.gain * _ir_settings.channel_gain[c];
-		const uint32_t chan_delay = _ir_settings.pre_delay + _ir_settings.channel_delay[c];
+		const uint32_t chan_delay = (_ir_settings.pre_delay + _ir_settings.channel_delay[c]) * r->resample_ratio ();
 
 #ifndef NDEBUG
 		printf ("Convolver map: IR-chn %d: in %d -> out %d (gain: %.1fdB delay; %d)\n", ir_c + 1, io_i + 1, io_o + 1, 20.f * log10f (chan_gain), chan_delay);

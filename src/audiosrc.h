@@ -31,7 +31,7 @@ namespace ZeroConvoLV2
 class SrcSource : public Readable
 {
 public:
-	SrcSource (Readable*, uint32_t ratio);
+	SrcSource (Readable*, uint32_t target_rate);
 	~SrcSource ();
 
 	uint64_t read (float*, uint64_t pos, uint64_t cnt, uint32_t channel) const;
@@ -39,6 +39,8 @@ public:
 	uint64_t readable_length () const { return ceil (_source->readable_length () * _ratio) - 1; }
 	uint32_t n_channels () const { return _source->n_channels (); }
 	uint32_t sample_rate () const { return _target_rate; }
+
+	double ratio () const { return _ratio; }
 
 private:
 	Readable* _source;

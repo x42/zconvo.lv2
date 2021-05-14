@@ -13,6 +13,7 @@ public:
 	virtual uint64_t readable_length () const = 0;
 	virtual uint32_t n_channels () const = 0;
 	virtual uint32_t sample_rate () const = 0;
+	virtual double   resample_ratio () const { return 1.0; }
 };
 
 }
