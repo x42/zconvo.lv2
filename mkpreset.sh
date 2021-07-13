@@ -1,13 +1,28 @@
 #!/bin/bash
 
-UPFX="AWX_"
-NPFX="Airwindows - "
+#UPFX="AWX_"
+#NPFX="Airwindows - "
 
-UPFX="CKSDE_"
-NPFX="CKSDE - "
+#UPFX="CKSDE_"
+#NPFX="CKSDE - "
 
 #UPFX="SCM7_"
 #NPFX="M7 - "
+
+#UPFX="BMT_"
+#NPFX="Balance - Spaces - "
+
+#UPFX="VOX_"
+#NPFX="IMreverbs - Spaces - "
+
+#UPFX="OAIR_"
+#NPFX="OpenAir - Spaces - "
+
+#UPFX="CCGB_"
+#NPFX="Concertgebouw - "
+
+UPFX="JEZ_"
+NPFX="JezWells - Spaces - "
 
 FULLSTATE=false
 FFTGAIN=`dirname $0`/tools/fftgain
@@ -50,6 +65,8 @@ cat > presets.ttl << EOF
 
 EOF
 
+IFS=$'\n'
+
 for ir in *.flac; do
 	FT=$(file "${ir}")
 	BN=$(basename "${ir}" .flac | sed 's/_/ /g')
@@ -61,7 +78,7 @@ for ir in *.flac; do
 		else
 			SFX="Stereo"
 		fi
-	elif echo $FT | grep -q " mono "; then
+	elif echo $FT | grep -q " mono"; then
 		SFX="Mono"
 	elif echo $FT | grep -q " 4 channels"; then
 		SFX="Stereo"
