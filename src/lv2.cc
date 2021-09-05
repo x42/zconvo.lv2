@@ -44,6 +44,7 @@
 #define ZC_ir        ZC_PREFIX "ir"
 #define ZC_gain      ZC_PREFIX "gain"
 #define ZC_predelay  ZC_PREFIX "predelay"
+#define ZC_latency   ZC_PREFIX "artificial_latency"
 #define ZC_chn_gain  ZC_PREFIX "channel_gain"
 #define ZC_chn_delay ZC_PREFIX "channel_predelay"
 #define ZC_sum_ins   ZC_PREFIX "sum_inputs"
@@ -108,6 +109,7 @@ typedef struct {
 	LV2_URID state_Changed;
 	LV2_URID zc_chn_delay;
 	LV2_URID zc_predelay;
+	LV2_URID zc_latency;
 	LV2_URID zc_chn_gain;
 	LV2_URID zc_gain;
 	LV2_URID zc_sum_ins;
@@ -327,6 +329,7 @@ instantiate (const LV2_Descriptor*     descriptor,
 #endif
 	self->zc_chn_delay   = map->map (map->handle, ZC_chn_delay);
 	self->zc_predelay    = map->map (map->handle, ZC_predelay);
+	self->zc_latency     = map->map (map->handle, ZC_latency);
 	self->zc_chn_gain    = map->map (map->handle, ZC_chn_gain);
 	self->zc_gain        = map->map (map->handle, ZC_gain);
 	self->zc_sum_ins     = map->map (map->handle, ZC_sum_ins);
@@ -397,7 +400,7 @@ run (LV2_Handle instance, uint32_t n_samples)
 	const bool buffered = self->buffered;
 
 	assert (self->clv_online->ready ());
-	*self->p_latency = buffered ? self->clv_online->latency () : 0;
+	*self->p_latency = self->clv_online->artificial_latency () + (buffered ? self->clv_online->latency () : 0);
 
 	copy_no_inplace_buffers (self->output[0], self->input[0], n_samples);
 
@@ -591,6 +594,9 @@ save (LV2_Handle                instance,
 	store (handle, self->zc_predelay, &irs.pre_delay, sizeof (uint32_t), self->atom_Int,
 	       LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
+	store (handle, self->zc_latency, &irs.artificial_latency, sizeof (int32_t), self->atom_Int,
+	       LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
 	int32_t lv2bool = irs.sum_inputs ? 1 : 0;
 	store (handle, self->zc_sum_ins, &lv2bool, sizeof (int32_t), self->atom_Bool,
 	       LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
@@ -658,6 +664,11 @@ restore (LV2_Handle                  instance,
 	value = retrieve (handle, self->zc_predelay, &size, &type, &valflags);
 	if (value && size == sizeof (int32_t) && type == self->atom_Int) {
 		irs.pre_delay = *((int32_t*)value);
+	}
+
+	value = retrieve (handle, self->zc_latency, &size, &type, &valflags);
+	if (value && size == sizeof (int32_t) && type == self->atom_Int) {
+		irs.artificial_latency = *((int32_t*)value);
 	}
 
 	value = retrieve (handle, self->zc_gain, &size, &type, &valflags);
@@ -921,7 +932,7 @@ run_cfg (LV2_Handle instance, uint32_t n_samples)
 	}
 
 	/* forward audio, apply gain */
-	*self->p_latency = 0;
+	*self->p_latency = self->clv_online->artificial_latency ();
 
 	copy_no_inplace_buffers (self->output[0], self->input[0], n_samples);
 

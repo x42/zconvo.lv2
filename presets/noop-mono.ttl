@@ -7,4 +7,5 @@ zcpset:noopMono
 	state:state [
 		<http://gareus.org/oss/lv2/zeroconvolv#ir> <ir/delta-48k.wav>;
 		<http://gareus.org/oss/lv2/zeroconvolv#predelay> "0"^^xsd:int;
+		<http://gareus.org/oss/lv2/zeroconvolv#artificial_latency> "0"^^xsd:int;
 	].

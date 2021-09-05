@@ -69,6 +69,7 @@ public:
 		IRSettings () {
 			gain  = 1.0;
 			pre_delay = 0.0;
+			artificial_latency = 0;
 			channel_gain[0] = channel_gain[1] = channel_gain[2] = channel_gain[3] = 1.0;
 			channel_delay[0] = channel_delay[1] = channel_delay[2] = channel_delay[3] = 0;
 			sum_inputs = false;
@@ -76,6 +77,7 @@ public:
 
 		float    gain;
 		uint32_t pre_delay;
+		int32_t  artificial_latency;
 		float    channel_gain[4];
 		uint32_t channel_delay[4];
 		bool     sum_inputs;
@@ -108,6 +110,7 @@ public:
 	std::string const& path () const { return _path; }
 	IRSettings const&  settings () const { return _ir_settings; }
 	bool sum_inputs () const { return _ir_settings.sum_inputs; }
+	int32_t artificial_latency () const { return _ir_settings.artificial_latency; }
 
 	bool ready () const;
 
