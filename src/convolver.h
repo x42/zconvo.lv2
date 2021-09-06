@@ -75,12 +75,12 @@ public:
 			sum_inputs = false;
 		};
 
-		float    gain;
-		uint32_t pre_delay;
-		int32_t  artificial_latency;
-		float    channel_gain[4];
-		uint32_t channel_delay[4];
-		bool     sum_inputs;
+		float   gain;
+		int32_t pre_delay;
+		int32_t artificial_latency;
+		float   channel_gain[4];
+		int32_t channel_delay[4];
+		bool    sum_inputs;
 	};
 
 	Convolver (std::string const&,

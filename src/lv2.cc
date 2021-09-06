@@ -591,7 +591,7 @@ save (LV2_Handle                instance,
 	store (handle, self->zc_gain, &irs.gain, sizeof (float), self->atom_Float,
 	       LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
-	store (handle, self->zc_predelay, &irs.pre_delay, sizeof (uint32_t), self->atom_Int,
+	store (handle, self->zc_predelay, &irs.pre_delay, sizeof (int32_t), self->atom_Int,
 	       LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
 	store (handle, self->zc_latency, &irs.artificial_latency, sizeof (int32_t), self->atom_Int,
@@ -610,7 +610,7 @@ save (LV2_Handle                instance,
 	       self->atom_Vector, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
 	sv.child_type = self->atom_Int;
-	sv.child_size = sizeof (uint32_t);
+	sv.child_size = sizeof (int32_t);
 	memcpy (sv.i, irs.channel_delay, sizeof (irs.channel_delay));
 	store (handle, self->zc_chn_delay, (void*)&sv, sizeof (sv),
 	       self->atom_Vector, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
@@ -672,7 +672,7 @@ restore (LV2_Handle                  instance,
 	}
 
 	value = retrieve (handle, self->zc_gain, &size, &type, &valflags);
-	if (value && size == sizeof (int32_t) && type == self->atom_Float) {
+	if (value && size == sizeof (float) && type == self->atom_Float) {
 		irs.gain = *((float*)value);
 	}
 
