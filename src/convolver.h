@@ -110,7 +110,7 @@ public:
 	std::string const& path () const { return _path; }
 	IRSettings const&  settings () const { return _ir_settings; }
 	bool sum_inputs () const { return _ir_settings.sum_inputs; }
-	int32_t artificial_latency () const { return _ir_settings.artificial_latency; }
+	int32_t artificial_latency () const { return _ir_settings.artificial_latency * _readables[0]->resample_ratio (); }
 
 	bool ready () const;
 

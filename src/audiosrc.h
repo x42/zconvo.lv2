@@ -40,7 +40,7 @@ public:
 	uint32_t n_channels () const { return _source->n_channels (); }
 	uint32_t sample_rate () const { return _target_rate; }
 
-	double ratio () const { return _ratio; }
+	double resample_ratio () const { return _ratio; }
 
 private:
 	Readable* _source;
