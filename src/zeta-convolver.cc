@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------------
 //
 //  Copyright (C) 2006-2018 Fons Adriaensen <fons@linuxaudio.org>
+//  Copyright (C) 2020-2021 Robin Gareus <robin@gareus.org>
 //
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -14,6 +15,28 @@
 //
 //  You should have received a copy of the GNU General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+// ----------------------------------------------------------------------------
+// This is a customized version of Fons Adriaensen's libzita-convolver.
+//
+// A detailed history is available via `git log`.
+//
+// * Add new API method `readtail` which allows runs the FFT convolver for
+//   everything except the first part (_parsize) of the IR.
+//   It is intended for partial-cycles (smaller than nominal block), where the
+//   remaining part can be convolved independently.
+//   The current implementation does that in the time-domain.
+// * Rename the header file "zita" -> "zeta" to indicate the change
+//   Also a dedicated namespace/scope was added to disambiguate symbols.
+// * clang-format code; variable are scoped and `const' added where appropriate
+// * Add support for macOS realtime thread priority (pthread priorities play
+//   no role on that OS)
+// * Fix race-condition when re-initializing Convproc while it it is still
+//   initializing.
+// * Fix compilation with pthread-w32 with mingw (pthread_t is opaque)
+// * Remove unused interfaces which are not required for the plugin version,
+//   notably the API to link and update IRs, but also static globals were
+//   dropped.
 //
 // ----------------------------------------------------------------------------
 
