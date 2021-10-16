@@ -150,6 +150,7 @@ Convolver::Convolver (
 	, _n_samples (0)
 	, _max_size (0)
 	, _offset (0)
+	, _artificial_latency (0)
 	, _configured (false)
 	, _dry (0.f)
 	, _wet (1.f)
@@ -188,6 +189,8 @@ Convolver::Convolver (
 	if (_readables.empty ()) {
 		throw std::runtime_error ("Convolver: no usable audio-channels.");
 	}
+
+	_artificial_latency = _ir_settings.artificial_latency * _readables[0]->resample_ratio ();
 }
 
 Convolver::~Convolver ()
