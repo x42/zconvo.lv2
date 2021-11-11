@@ -87,8 +87,8 @@ analyze (ZeroConvoLV2::SFSource const& sf)
 	}
 
 	fprintf (stderr, "Peak power: %.2fdB LF-average: %.2fdB | gain: %f\n", power_to_dB (pp), power_to_dB (ap), gain);
-#if 0
-	printf ("<http://gareus.org/oss/lv2/zeroconvolv#gain> \"%f\"^^xsd:float ;\n", gain);
+#if 1
+	printf ("  <http://gareus.org/oss/lv2/zeroconvolv#gain> \"%f\"^^xsd:float ;\n", gain);
 #else
 	printf ("            zc:gain \"%f\"^^xsd:float ;\n", gain);
 #endif
