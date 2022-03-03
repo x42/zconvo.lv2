@@ -56,6 +56,8 @@
 float Convproc::_mac_cost = 1.0f;
 float Convproc::_fft_cost = 5.0f;
 
+static pthread_mutex_t fftw_planner_lock = PTHREAD_MUTEX_INITIALIZER;
+
 static float*
 calloc_real (uint32_t k)
 {
@@ -481,8 +483,10 @@ Convlevel::configure (int      prio,
 	_time_data = calloc_real (2 * _parsize);
 	_prep_data = calloc_real (2 * _parsize);
 	_freq_data = calloc_complex (_parsize + 1);
+	pthread_mutex_lock (&fftw_planner_lock);
 	_plan_r2c  = fftwf_plan_dft_r2c_1d (2 * _parsize, _time_data, _freq_data, fftwopt);
 	_plan_c2r  = fftwf_plan_dft_c2r_1d (2 * _parsize, _freq_data, _time_data, fftwopt);
+	pthread_mutex_unlock (&fftw_planner_lock);
 	if (_plan_r2c && _plan_c2r) {
 		return;
 	}
@@ -714,8 +718,11 @@ Convlevel::cleanup (void)
 	}
 	_out_list = 0;
 
+	pthread_mutex_lock (&fftw_planner_lock);
 	fftwf_destroy_plan (_plan_r2c);
 	fftwf_destroy_plan (_plan_c2r);
+	pthread_mutex_unlock (&fftw_planner_lock);
+
 	fftwf_free (_time_data);
 	fftwf_free (_prep_data);
 	fftwf_free (_freq_data);

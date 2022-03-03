@@ -59,6 +59,10 @@
 #define x_forge_object lv2_atom_forge_blank
 #endif
 
+#ifdef WITH_STATIC_FFTW_CLEANUP
+static pthread_mutex_t instance_count_lock = PTHREAD_MUTEX_INITIALIZER;
+static unsigned int    instance_count      = 0;
+#endif
 
 enum {
 	CMD_APPLY = 0,
@@ -335,6 +339,12 @@ instantiate (const LV2_Descriptor*     descriptor,
 	self->zc_sum_ins     = map->map (map->handle, ZC_sum_ins);
 	self->zc_ir          = map->map (map->handle, ZC_ir);
 
+#ifdef WITH_STATIC_FFTW_CLEANUP
+	pthread_mutex_lock (&instance_count_lock);
+	++instance_count;
+	pthread_mutex_unlock (&instance_count_lock);
+#endif
+
 	return (LV2_Handle)self;
 }
 
@@ -445,6 +455,28 @@ cleanup (LV2_Handle instance)
 	delete self->clv_online;
 	delete self->clv_offline;
 	pthread_mutex_destroy (&self->state_lock);
+
+#ifdef WITH_STATIC_FFTW_CLEANUP
+	pthread_mutex_lock (&instance_count_lock);
+	if (instance_count > 0) {
+		--instance_count;
+	}
+	/* use this only when statically linking to a local fftw!
+	 *
+	 * "After calling fftw_cleanup, all existing plans become undefined,
+	 *  and you should not attempt to execute them nor to destroy them."
+	 * [http://www.fftw.org/fftw3_doc/Using-Plans.html]
+	 *
+	 * If libfftwf is shared with other plugins or the host this can
+	 * cause undefined behavior.
+	 */
+	if (instance_count == 0) {
+		fftwf_cleanup ();
+	}
+
+	pthread_mutex_unlock (&instance_count_lock);
+#endif
+
 	free (instance);
 }
 
