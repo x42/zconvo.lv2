@@ -28,7 +28,7 @@ This plugin uses background processing and is suitable to process
 long impulse-responses. Configurations up to true-stereo (4 channels)
 are supported.
 
-The configurable convolver has the option to to buffer the signal,
+The configurable convolver has the option to buffer the signal,
 introducing one cycle of latency for increased reliability (and lower DSP
 load. This is always enabled for the preset-variant.
 
