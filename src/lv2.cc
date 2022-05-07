@@ -141,6 +141,9 @@ typedef struct {
 	int      rt_policy;
 	int      rt_priority;
 	float    tc64;
+
+	/* next IR file to load, acting as queue */
+	std::string next_queued_file;
 } zeroConvolv;
 
 typedef struct {
@@ -503,11 +506,55 @@ work_response (LV2_Handle  instance,
 	assert (self->clv_online != self->clv_offline || self->clv_online == NULL);
 
 	inform_ui (self, self->pset_dirty);
+
 	self->pset_dirty = true;
 
 	uint32_t d = CMD_FREE;
 	self->schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
 	return LV2_WORKER_SUCCESS;
+}
+
+static LV2_Worker_Status
+load_ir_worker (zeroConvolv*                self,
+                LV2_Worker_Respond_Function respond,
+                LV2_Worker_Respond_Handle   handle,
+                std::string const&          ir_path)
+{
+	pthread_mutex_lock (&self->state_lock);
+
+	if (self->clv_offline) {
+		self->next_queued_file = ir_path;
+		pthread_mutex_unlock (&self->state_lock);
+		lv2_log_note (&self->logger, "ZConvolv Work: queueing for later: ir=%s\n", ir_path.c_str ());
+		return LV2_WORKER_SUCCESS;
+	}
+
+	lv2_log_note (&self->logger, "ZConvolv opening: ir=%s\n", ir_path.c_str ());
+
+	bool ok = false;
+	try {
+		self->clv_offline = new ZeroConvoLV2::Convolver (ir_path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg);
+		self->clv_offline->reconfigure (self->block_size);
+		if (!(ok = self->clv_offline->ready ())) {
+			delete self->clv_offline;
+			self->clv_offline = NULL;
+		}
+	} catch (std::runtime_error& err) {
+		lv2_log_warning (&self->logger, "ZConvolv Convolver: %s.\n", err.what ());
+		self->clv_offline = NULL;
+	}
+
+	self->next_queued_file.clear ();
+
+	pthread_mutex_unlock (&self->state_lock);
+
+	if (!ok) {
+		//lv2_log_note (&self->logger, "ZConvolv Load: configuration failed.\n");
+		return LV2_WORKER_ERR_UNKNOWN;
+	} else {
+		respond (handle, 1, "");
+		return LV2_WORKER_SUCCESS;
+	}
 }
 
 static LV2_Worker_Status
@@ -527,8 +574,13 @@ work (LV2_Handle                  instance,
 			case CMD_FREE:
 				pthread_mutex_lock (&self->state_lock);
 				delete self->clv_offline;
-				self->clv_offline = 0;
+				self->clv_offline = NULL;
 				pthread_mutex_unlock (&self->state_lock);
+				/* Process queue */
+				if (!self->next_queued_file.empty ()) {
+					lv2_log_note (&self->logger, "ZConvolv process queue: ir=%s\n", self->next_queued_file.c_str ());
+					return load_ir_worker (self, respond, handle, self->next_queued_file);
+				}
 				break;
 			default:
 				return LV2_WORKER_ERR_UNKNOWN;
@@ -539,37 +591,9 @@ work (LV2_Handle                  instance,
 
 	const LV2_Atom* file_path = (const LV2_Atom*)data;
 	const char*     fn        = (const char*)(file_path + 1);
-	std::string     ir_path (fn, file_path->size);
-	lv2_log_note (&self->logger, "ZConvolv request open: ir=%s\n", fn);
+	lv2_log_note (&self->logger, "ZConvolv request load: ir=%s\n", fn);
 
-	pthread_mutex_lock (&self->state_lock);
-	if (self->clv_offline) {
-		pthread_mutex_unlock (&self->state_lock);
-		lv2_log_warning (&self->logger, "ZConvolv Work: offline instance in-use, load ignored.\n");
-		return LV2_WORKER_ERR_UNKNOWN;
-	}
-
-	bool ok = false;
-	try {
-		self->clv_offline = new ZeroConvoLV2::Convolver (ir_path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg);
-		self->clv_offline->reconfigure (self->block_size);
-		if (!(ok = self->clv_offline->ready ())) {
-			delete self->clv_offline;
-			self->clv_offline = 0;
-		}
-	} catch (std::runtime_error& err) {
-		lv2_log_warning (&self->logger, "ZConvolv Convolver: %s.\n", err.what ());
-		self->clv_offline = 0;
-	}
-	pthread_mutex_unlock (&self->state_lock);
-
-	if (!ok) {
-		//lv2_log_note (&self->logger, "ZConvolv Load: configuration failed.\n");
-		return LV2_WORKER_ERR_UNKNOWN;
-	} else {
-		respond (handle, 1, "");
-		return LV2_WORKER_SUCCESS;
-	}
+	return load_ir_worker (self, respond, handle, std::string (fn, file_path->size));
 }
 
 static LV2_State_Status
@@ -735,27 +759,32 @@ restore (LV2_Handle                  instance,
 	char* path = map_path->absolute_path (map_path->handle, (const char*)value);
 	lv2_log_note (&self->logger, "ZConvolv State: ir=%s\n", path);
 
+	LV2_State_Status rv = LV2_STATE_SUCCESS;
+	bool ok = false;
+
 	pthread_mutex_lock (&self->state_lock);
 	if (self->clv_offline) {
+		self->next_queued_file = path;
 		pthread_mutex_unlock (&self->state_lock);
-		lv2_log_warning (&self->logger, "ZConvolv State: offline instance in-use, state ignored.\n");
-		return LV2_STATE_ERR_UNKNOWN;
+		lv2_log_note (&self->logger, "ZConvolv State: queueing for later: ir=%s\n", path);
+		goto errout;
 	}
 
-	bool ok = false;
+	rv = LV2_STATE_ERR_NO_PROPERTY;
 	try {
 		self->clv_offline = new ZeroConvoLV2::Convolver (path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg, irs);
 		self->clv_offline->reconfigure (self->block_size);
 		if (!(ok = self->clv_offline->ready ())) {
 			delete self->clv_offline;
-			self->clv_offline = 0;
+			self->clv_offline = NULL;
 		}
 	} catch (std::runtime_error& err) {
 		lv2_log_warning (&self->logger, "ZConvolv Convolver: %s.\n", err.what ());
-		self->clv_offline = 0;
+		self->clv_offline = NULL;
 	}
 	pthread_mutex_unlock (&self->state_lock);
 
+errout:
 #ifdef LV2_STATE__freePath
 	if (free_path) {
 		free_path->free_path (free_path->handle, path);
@@ -768,8 +797,7 @@ restore (LV2_Handle                  instance,
 	}
 
 	if (!ok) {
-		//lv2_log_note (&self->logger, "ZConvolv State: configuration failed.\n");
-		return LV2_STATE_ERR_NO_PROPERTY;
+		return rv;
 	} else {
 		self->pset_dirty = false;
 		uint32_t d = CMD_APPLY;
@@ -845,6 +873,10 @@ inform_ui (zeroConvolv* self, bool mark_dirty)
 	if (!self->clv_online || self->clv_online->path ().empty ()) {
 		return;
 	}
+	if (!self->next_queued_file.empty ()) {
+		return;
+	}
+
 	const char* path = self->clv_online->path ().c_str ();
 
 	LV2_Atom_Forge_Frame frame;
