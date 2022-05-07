@@ -53,10 +53,14 @@
 # define LV2_BUF_SIZE__nominalBlockLength "http://lv2plug.in/ns/ext/buf-size#nominalBlockLength"
 #endif
 
+#ifndef LV2_STATE__StateChanged
+# define LV2_STATE__StateChanged "http://lv2plug.in/ns/ext/state#StateChanged"
+#endif
+
 #ifdef HAVE_LV2_1_8
-#define x_forge_object lv2_atom_forge_object
+# define x_forge_object lv2_atom_forge_object
 #else
-#define x_forge_object lv2_atom_forge_blank
+# define x_forge_object lv2_atom_forge_blank
 #endif
 
 #ifdef WITH_STATIC_FFTW_CLEANUP
@@ -326,11 +330,7 @@ instantiate (const LV2_Descriptor*     descriptor,
 	self->patch_Set      = map->map (map->handle, LV2_PATCH__Set);
 	self->patch_property = map->map (map->handle, LV2_PATCH__property);
 	self->patch_value    = map->map (map->handle, LV2_PATCH__value);
-#ifdef LV2_STATE__StateChanged
 	self->state_Changed  = map->map (map->handle, LV2_STATE__StateChanged);
-#else
-	self->state_Changed  = map->map (map->handle, "http://lv2plug.in/ns/ext/state#StateChanged");
-#endif
 	self->zc_chn_delay   = map->map (map->handle, ZC_chn_delay);
 	self->zc_predelay    = map->map (map->handle, ZC_predelay);
 	self->zc_latency     = map->map (map->handle, ZC_latency);
