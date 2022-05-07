@@ -72,7 +72,7 @@ endif
 
 # add library dependent flags and libs
 
-override CXXFLAGS +=`$(PKG_CONFIG) --cflags glib-2.0 lv2 sndfile samplerate`
+override CXXFLAGS +=`$(PKG_CONFIG) --cflags lv2 sndfile samplerate`
 override LOADLIBES +=`$(PKG_CONFIG) --libs sndfile samplerate fftw3f` -lm
 
 ifeq ($(shell $(PKG_CONFIG) --atleast-version=1.8.1 lv2 && echo yes), yes)
