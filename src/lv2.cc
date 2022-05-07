@@ -41,6 +41,7 @@
 
 #define ZC_PREFIX "http://gareus.org/oss/lv2/zeroconvolv#"
 
+/* clang-format off */
 #define ZC_ir        ZC_PREFIX "ir"
 #define ZC_gain      ZC_PREFIX "gain"
 #define ZC_predelay  ZC_PREFIX "predelay"
@@ -62,6 +63,7 @@
 #else
 # define x_forge_object lv2_atom_forge_blank
 #endif
+/* clang-format on */
 
 #ifdef WITH_STATIC_FFTW_CLEANUP
 static pthread_mutex_t instance_count_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -87,7 +89,7 @@ typedef struct {
 	float*       p_ctrl[3];
 
 	/* settings */
-	bool buffered;
+	bool  buffered;
 	float db_dry;
 	float db_wet;
 
@@ -155,7 +157,7 @@ typedef struct {
 	};
 } stateVector;
 
-static void inform_ui (zeroConvolv* self, bool mark_dirty);
+static void  inform_ui (zeroConvolv* self, bool mark_dirty);
 static float db_to_coeff (float db);
 
 static LV2_Handle
@@ -714,7 +716,7 @@ restore (LV2_Handle                  instance,
 		lv2_log_warning (&self->logger, "ZConvolv State: using run() scheduler to restore\n");
 	}
 
-	const void* value;
+	const void*                         value;
 	ZeroConvoLV2::Convolver::IRSettings irs;
 
 	value = retrieve (handle, self->zc_predelay, &size, &type, &valflags);
@@ -760,7 +762,7 @@ restore (LV2_Handle                  instance,
 	lv2_log_note (&self->logger, "ZConvolv State: ir=%s\n", path);
 
 	LV2_State_Status rv = LV2_STATE_SUCCESS;
-	bool ok = false;
+	bool             ok = false;
 
 	pthread_mutex_lock (&self->state_lock);
 	if (self->clv_offline) {
@@ -800,7 +802,7 @@ errout:
 		return rv;
 	} else {
 		self->pset_dirty = false;
-		uint32_t d = CMD_APPLY;
+		uint32_t d       = CMD_APPLY;
 		schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
 		return LV2_STATE_SUCCESS;
 	}
@@ -980,8 +982,8 @@ run_cfg (LV2_Handle instance, uint32_t n_samples)
 	float db_wet = *self->p_ctrl[2];
 
 	if (self->db_dry != db_dry || self->db_wet != db_wet) {
-		self->db_dry = db_dry;
-		self->db_wet = db_wet;
+		self->db_dry     = db_dry;
+		self->db_wet     = db_wet;
 		self->dry_target = db_to_coeff (db_dry);
 
 		if (self->clv_online) {
@@ -1033,8 +1035,8 @@ run_cfg (LV2_Handle instance, uint32_t n_samples)
 	const float alpha  = self->tc64;
 	uint32_t    remain = n_samples;
 	uint32_t    done   = 0;
-	float       cur     = self->dry_coeff;
-	float       tgt     = self->dry_target;
+	float       cur    = self->dry_coeff;
+	float       tgt    = self->dry_target;
 
 	while (remain > 0) {
 		uint32_t ns = std::min (remain, (uint32_t)64);
@@ -1118,13 +1120,14 @@ static const LV2_Descriptor descriptor5 = {
     cleanup,
     extension_data};
 
-
+/* clang-format off */
 #undef LV2_SYMBOL_EXPORT
 #ifdef _WIN32
 # define LV2_SYMBOL_EXPORT __declspec(dllexport)
 #else
 # define LV2_SYMBOL_EXPORT __attribute__ ((visibility ("default")))
 #endif
+/* clang-format on */
 LV2_SYMBOL_EXPORT
 const LV2_Descriptor*
 lv2_descriptor (uint32_t index)

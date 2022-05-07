@@ -59,13 +59,13 @@ DelayLine::reset (uint32_t delay)
 		_pos   = 0;
 	} else if (_delay == delay) {
 		memset (_buf, 0, (1 + delay) * sizeof (float));
-		_pos = 0;
+		_pos     = 0;
 		_written = false;
 	} else {
 		free (_buf);
-		_buf   = (float*) calloc (1 + delay, sizeof (float));
-		_delay = _buf ? delay : 0;
-		_pos   = 0;
+		_buf     = (float*)calloc (1 + delay, sizeof (float));
+		_delay   = _buf ? delay : 0;
+		_pos     = 0;
 		_written = false;
 	}
 }
@@ -75,12 +75,12 @@ DelayLine::run (float* buf, uint32_t n_samples)
 {
 	_written = n_samples > 0;
 	assert (buf && _delay > 0);
-	for (uint32_t i = 0 ; i < n_samples; ++i) {
+	for (uint32_t i = 0; i < n_samples; ++i) {
 		_buf[_pos] = buf[i];
 		if (++_pos > _delay) {
 			_pos = 0;
 		}
-		buf[i] = _buf[_pos] ;
+		buf[i] = _buf[_pos];
 	}
 }
 
@@ -134,13 +134,12 @@ TimeDomainConvolver::run (float* out, float const* in, uint32_t n_samples) const
 	}
 }
 
-Convolver::Convolver (
-		std::string const& path,
-		uint32_t sample_rate,
-		int sched_policy,
-		int sched_priority,
-		IRChannelConfig irc,
-		IRSettings irs)
+Convolver::Convolver (std::string const& path,
+                      uint32_t           sample_rate,
+                      int                sched_policy,
+                      int                sched_priority,
+                      IRChannelConfig    irc,
+                      IRSettings         irs)
 	: _path (path)
 	, _irc (irc)
 	, _sched_policy (sched_policy)
@@ -233,8 +232,7 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 	    /*quantum, nominal-buffersize*/ _n_samples,
 	    /*Convproc::MINPART*/ _n_samples,
 	    /*Convproc::MAXPART*/ n_part,
-	    /*density*/ 0
-	    );
+	    /*density*/ 0);
 
 	/* map channels
 	 * - Mono:
@@ -301,7 +299,7 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 		const uint32_t chan_delay = (_ir_settings.pre_delay + _ir_settings.channel_delay[c]) * r->resample_ratio ();
 
 #ifndef NDEBUG
-		printf ("Convolver map: IR-chn %d: in %d -> out %d (gain: %.1fdB delay; %d)\n", ir_c + 1, io_i + 1, io_o + 1, 20.f * log10f (fabs(chan_gain)), chan_delay);
+		printf ("Convolver map: IR-chn %d: in %d -> out %d (gain: %.1fdB delay; %d)\n", ir_c + 1, io_i + 1, io_o + 1, 20.f * log10f (fabs (chan_gain)), chan_delay);
 #endif
 
 		/* this allows for 4 channel files
@@ -353,7 +351,8 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 	}
 
 	if (rv == 0) {
-		double period_ns = 1e9 *  block_size / _samplerate;
+		double period_ns = 1e9 * block_size / _samplerate;
+
 		rv = _convproc.start_process (_sched_priority, _sched_policy, period_ns);
 	}
 
@@ -578,6 +577,5 @@ Convolver::run_stereo (float* left, float* right, uint32_t n_samples)
 		}
 		done   += ns;
 		remain -= ns;
-
 	}
 }

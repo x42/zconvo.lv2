@@ -115,6 +115,7 @@ public:
 
 protected:
 	void post_init ();
+
 	SNDFILE* _sndfile;
 	SF_INFO  _info;
 };

@@ -24,12 +24,12 @@
 using namespace ZeroConvoLV2;
 
 SrcSource::SrcSource (Readable* r, uint32_t target_rate)
-    : _source (r)
-    , _target_rate (target_rate)
-    , _src_state (0)
-    , _source_position (0)
-    , _target_position (0)
-    , _fract_position (0)
+	: _source (r)
+	, _target_rate (target_rate)
+	, _src_state (0)
+	, _source_position (0)
+	, _target_position (0)
+	, _fract_position (0)
 {
 	_ratio              = target_rate / (double)_source->sample_rate ();
 	_src_data.src_ratio = _ratio;

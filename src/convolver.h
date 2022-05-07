@@ -26,7 +26,6 @@
 
 namespace ZeroConvoLV2
 {
-
 class DelayLine
 {
 public:
@@ -66,13 +65,15 @@ public:
 	};
 
 	struct IRSettings {
-		IRSettings () {
-			gain  = 1.0;
-			pre_delay = 0.0;
+		IRSettings ()
+		{
+			gain               = 1.0;
+			pre_delay          = 0.0;
 			artificial_latency = 0;
+			sum_inputs         = false;
+
 			channel_gain[0] = channel_gain[1] = channel_gain[2] = channel_gain[3] = 1.0;
 			channel_delay[0] = channel_delay[1] = channel_delay[2] = channel_delay[3] = 0;
-			sum_inputs = false;
 		};
 
 		float   gain;
@@ -84,11 +85,11 @@ public:
 	};
 
 	Convolver (std::string const&,
-			uint32_t sample_rate,
-			int sched_policy,
-			int sched_priority,
-			IRChannelConfig irc = Mono,
-			IRSettings irs = IRSettings ());
+	           uint32_t        sample_rate,
+	           int             sched_policy,
+	           int             sched_priority,
+	           IRChannelConfig irc = Mono,
+	           IRSettings      irs = IRSettings ());
 	~Convolver ();
 
 	void reconfigure (uint32_t, bool threaded = true);

@@ -484,8 +484,8 @@ Convlevel::configure (int      prio,
 	_prep_data = calloc_real (2 * _parsize);
 	_freq_data = calloc_complex (_parsize + 1);
 	pthread_mutex_lock (&fftw_planner_lock);
-	_plan_r2c  = fftwf_plan_dft_r2c_1d (2 * _parsize, _time_data, _freq_data, fftwopt);
-	_plan_c2r  = fftwf_plan_dft_c2r_1d (2 * _parsize, _freq_data, _time_data, fftwopt);
+	_plan_r2c = fftwf_plan_dft_r2c_1d (2 * _parsize, _time_data, _freq_data, fftwopt);
+	_plan_c2r = fftwf_plan_dft_c2r_1d (2 * _parsize, _freq_data, _time_data, fftwopt);
 	pthread_mutex_unlock (&fftw_planner_lock);
 	if (_plan_r2c && _plan_c2r) {
 		return;
@@ -622,8 +622,8 @@ Convlevel::start (int abspri, int policy, double period_ns)
 #ifndef PTW32_VERSION
 	_pthr = 0;
 #endif
-	min   = sched_get_priority_min (policy);
-	max   = sched_get_priority_max (policy);
+	min = sched_get_priority_min (policy);
+	max = sched_get_priority_max (policy);
 	abspri += _prio;
 	if (abspri > max) {
 		abspri = max;
@@ -880,7 +880,6 @@ Convlevel::readtail (uint32_t n_samples)
 	uint32_t opind   = _opind;
 	uint32_t outoffs = _outoffs + _outsize;
 	if (outoffs == _parsize) {
-
 		while (_wait) {
 			_done.wait ();
 			_wait--;
