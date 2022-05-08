@@ -572,7 +572,10 @@ load_ir_worker_locked (zeroConvolv*                self,
 	pthread_mutex_unlock (&self->state_lock);
 
 	if (respond) {
-		/* trigger ::inform_ui() in work_response */
+		/* schedule a ::work_response() call.
+		 * if ok, work_response() swaps instances, and triggers CMD_FREE
+		 * else, work_response() calls ::inform_ui() with most recent successfully loaded IR
+		 */
 		respond (handle, 1, "");
 	}
 
