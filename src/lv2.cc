@@ -131,6 +131,7 @@ typedef struct {
 	bool pset_dirty; // unset before scheduling work for state-restore.
 
 	pthread_mutex_t state_lock;
+	pthread_mutex_t queue_lock;
 
 	/* configuration */
 	ZeroConvoLV2::Convolver::IRChannelConfig chn_cfg;
@@ -302,6 +303,7 @@ instantiate (const LV2_Descriptor*     descriptor,
 	}
 
 	pthread_mutex_init (&self->state_lock, NULL);
+	pthread_mutex_init (&self->queue_lock, NULL);
 
 	self->map         = map;
 	self->schedule    = schedule;
@@ -459,6 +461,7 @@ cleanup (LV2_Handle instance)
 	zeroConvolv* self = (zeroConvolv*)instance;
 	delete self->clv_online;
 	delete self->clv_offline;
+	pthread_mutex_destroy (&self->queue_lock);
 	pthread_mutex_destroy (&self->state_lock);
 
 #ifdef WITH_STATIC_FFTW_CLEANUP
@@ -524,6 +527,15 @@ work_response (LV2_Handle  instance,
 	return LV2_WORKER_SUCCESS;
 }
 
+static void
+set_queue_file (zeroConvolv* self, std::string const& ir_path)
+{
+	lv2_log_note (&self->logger, "ZConvolv: queue ir=%s\n", ir_path.c_str ());
+	pthread_mutex_lock (&self->queue_lock);
+	self->next_queued_file = ir_path;
+	pthread_mutex_unlock (&self->queue_lock);
+}
+
 static LV2_Worker_Status
 load_ir_worker_locked (zeroConvolv*                self,
                        LV2_Worker_Respond_Function respond,
@@ -534,9 +546,8 @@ load_ir_worker_locked (zeroConvolv*                self,
 	ok = false;
 
 	if (self->clv_offline) {
-		self->next_queued_file = ir_path;
+		set_queue_file (self, ir_path);
 		pthread_mutex_unlock (&self->state_lock);
-		lv2_log_note (&self->logger, "ZConvolv Work: queueing for later: ir=%s\n", ir_path.c_str ());
 		return LV2_WORKER_SUCCESS;
 	}
 
@@ -597,8 +608,10 @@ work (LV2_Handle                  instance,
 					delete self->clv_offline;
 					self->clv_offline = NULL;
 
+					pthread_mutex_lock (&self->queue_lock);
 					std::string queue_file;
 					self->next_queued_file.swap (queue_file);
+					pthread_mutex_unlock (&self->queue_lock);
 
 					if (!queue_file.empty ()) {
 						lv2_log_note (&self->logger, "ZConvolv process queue: ir=%s\n", queue_file.c_str ());
@@ -711,6 +724,7 @@ restore (LV2_Handle                  instance,
 	size_t       size;
 	uint32_t     type;
 	uint32_t     valflags;
+	bool         thread_safe = false;
 
 	/* Get the work scheduler provided to restore() (state:threadSafeRestore
 	 * support), but fall back to instantiate() schedules (spec-violating
@@ -723,7 +737,8 @@ restore (LV2_Handle                  instance,
 	for (int i = 0; features[i]; ++i) {
 		if (!strcmp (features[i]->URI, LV2_WORKER__schedule)) {
 			lv2_log_note (&self->logger, "ZConvolv State: using thread-safe restore scheduler\n");
-			schedule = (LV2_Worker_Schedule*)features[i]->data;
+			schedule    = (LV2_Worker_Schedule*)features[i]->data;
+			thread_safe = true;
 		} else if (!strcmp (features[i]->URI, LV2_STATE__mapPath)) {
 			map_path = (LV2_State_Map_Path*)features[i]->data;
 		}
@@ -788,12 +803,37 @@ restore (LV2_Handle                  instance,
 	LV2_State_Status rv = LV2_STATE_SUCCESS;
 	bool             ok = false;
 
-	switch (load_ir_worker (self, NULL, NULL, path, ok)) {
-		case LV2_WORKER_ERR_UNKNOWN:
-			rv = LV2_STATE_ERR_NO_PROPERTY;
-			break;
-		default:
-			break;
+	self->pset_dirty = false; // XXX reset after queued state is loaded.
+
+	if (pthread_mutex_trylock (&self->state_lock)) {
+		/* The worker is busy, just queue file. This will be processed
+		 * when the worker triggers a work response. */
+		set_queue_file (self, path);
+	} else if (thread_safe) {
+		/* schedule for loading in the background */
+		uint8_t mem[4096]; // PATH_MAX
+#if 1
+		LV2_Atom_Forge forge;
+		lv2_atom_forge_init (&forge, self->map);
+		lv2_atom_forge_set_buffer (&forge, mem, sizeof (mem));
+		LV2_Atom* msg = (LV2_Atom*)lv2_atom_forge_path (&forge, path, strlen (path));
+		self->schedule->schedule_work (self->schedule->handle, lv2_atom_total_size (msg), msg);
+#else
+		LV2_Atom pa{uint32_t (1 + strlen (path)), self->atom_String};
+		memcpy (mem, &pa, sizeof (LV2_Atom));
+		memcpy (&mem[sizeof (LV2_Atom)], path, 1 + strlen (path));
+		self->schedule->schedule_work (self->schedule->handle, lv2_atom_total_size ((const LV2_Atom*)mem), mem);
+#endif
+		pthread_mutex_unlock (&self->state_lock);
+	} else {
+		/* load it immediately, blocking wait */
+		switch (load_ir_worker_locked (self, NULL, NULL, path, ok)) {
+			case LV2_WORKER_ERR_UNKNOWN:
+				rv = LV2_STATE_ERR_NO_PROPERTY;
+				break;
+			default:
+				break;
+		}
 	}
 
 #ifdef LV2_STATE__freePath
