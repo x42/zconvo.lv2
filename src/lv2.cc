@@ -493,6 +493,14 @@ work_response (LV2_Handle  instance,
 	zeroConvolv* self = (zeroConvolv*)instance;
 
 	if (!self->clv_offline) {
+		/* If loading an IR file fails (NULL == clv_offline),
+		 * there may still be a file in the queue. A "Free"
+		 * command will trigger processing the queue.
+		 */
+		if (!self->next_queued_file.empty ()) {
+			uint32_t d = CMD_FREE;
+			self->schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
+		}
 		return LV2_WORKER_SUCCESS;
 	}
 
@@ -547,8 +555,6 @@ load_ir_worker (zeroConvolv*                self,
 		self->clv_offline = NULL;
 	}
 
-	self->next_queued_file.clear ();
-
 	pthread_mutex_unlock (&self->state_lock);
 
 	if (!ok) {
@@ -576,14 +582,19 @@ work (LV2_Handle                  instance,
 				respond (handle, 1, "");
 				break;
 			case CMD_FREE:
-				pthread_mutex_lock (&self->state_lock);
-				delete self->clv_offline;
-				self->clv_offline = NULL;
-				pthread_mutex_unlock (&self->state_lock);
-				/* Process queue */
-				if (!self->next_queued_file.empty ()) {
-					lv2_log_note (&self->logger, "ZConvolv process queue: ir=%s\n", self->next_queued_file.c_str ());
-					return load_ir_worker (self, respond, handle, self->next_queued_file, unused);
+				{
+					pthread_mutex_lock (&self->state_lock);
+					delete self->clv_offline;
+					self->clv_offline = NULL;
+
+					std::string queue_file = self->next_queued_file;
+					self->next_queued_file.clear ();
+					pthread_mutex_unlock (&self->state_lock);
+
+					if (!queue_file.empty ()) {
+						lv2_log_note (&self->logger, "ZConvolv process queue: ir=%s\n", queue_file.c_str ());
+						return load_ir_worker (self, respond, handle, queue_file, unused);
+					}
 				}
 				break;
 			default:
