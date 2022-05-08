@@ -520,9 +520,11 @@ static LV2_Worker_Status
 load_ir_worker (zeroConvolv*                self,
                 LV2_Worker_Respond_Function respond,
                 LV2_Worker_Respond_Handle   handle,
-                std::string const&          ir_path)
+                std::string const&          ir_path,
+                bool&                       ok)
 {
 	pthread_mutex_lock (&self->state_lock);
+	ok = false;
 
 	if (self->clv_offline) {
 		self->next_queued_file = ir_path;
@@ -533,7 +535,6 @@ load_ir_worker (zeroConvolv*                self,
 
 	lv2_log_note (&self->logger, "ZConvolv opening: ir=%s\n", ir_path.c_str ());
 
-	bool ok = false;
 	try {
 		self->clv_offline = new ZeroConvoLV2::Convolver (ir_path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg);
 		self->clv_offline->reconfigure (self->block_size);
@@ -551,12 +552,12 @@ load_ir_worker (zeroConvolv*                self,
 	pthread_mutex_unlock (&self->state_lock);
 
 	if (!ok) {
-		//lv2_log_note (&self->logger, "ZConvolv Load: configuration failed.\n");
+		lv2_log_note (&self->logger, "ZConvolv Load: configuration failed.\n");
 		return LV2_WORKER_ERR_UNKNOWN;
-	} else {
+	} else if (respond) {
 		respond (handle, 1, "");
-		return LV2_WORKER_SUCCESS;
 	}
+	return LV2_WORKER_SUCCESS;
 }
 
 static LV2_Worker_Status
@@ -567,6 +568,7 @@ work (LV2_Handle                  instance,
       const void*                 data)
 {
 	zeroConvolv* self = (zeroConvolv*)instance;
+	bool         unused;
 
 	if (size == sizeof (uint32_t)) {
 		switch (*((const uint32_t*)data)) {
@@ -581,7 +583,7 @@ work (LV2_Handle                  instance,
 				/* Process queue */
 				if (!self->next_queued_file.empty ()) {
 					lv2_log_note (&self->logger, "ZConvolv process queue: ir=%s\n", self->next_queued_file.c_str ());
-					return load_ir_worker (self, respond, handle, self->next_queued_file);
+					return load_ir_worker (self, respond, handle, self->next_queued_file, unused);
 				}
 				break;
 			default:
@@ -595,7 +597,7 @@ work (LV2_Handle                  instance,
 	const char*     fn        = (const char*)(file_path + 1);
 	lv2_log_note (&self->logger, "ZConvolv request load: ir=%s\n", fn);
 
-	return load_ir_worker (self, respond, handle, std::string (fn, file_path->size));
+	return load_ir_worker (self, respond, handle, std::string (fn, file_path->size), unused);
 }
 
 static LV2_State_Status
@@ -764,29 +766,14 @@ restore (LV2_Handle                  instance,
 	LV2_State_Status rv = LV2_STATE_SUCCESS;
 	bool             ok = false;
 
-	pthread_mutex_lock (&self->state_lock);
-	if (self->clv_offline) {
-		self->next_queued_file = path;
-		pthread_mutex_unlock (&self->state_lock);
-		lv2_log_note (&self->logger, "ZConvolv State: queueing for later: ir=%s\n", path);
-		goto errout;
+	switch (load_ir_worker (self, NULL, NULL, path, ok)) {
+		case LV2_WORKER_ERR_UNKNOWN:
+			rv = LV2_STATE_ERR_NO_PROPERTY;
+			break;
+		default:
+			break;
 	}
 
-	rv = LV2_STATE_ERR_NO_PROPERTY;
-	try {
-		self->clv_offline = new ZeroConvoLV2::Convolver (path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg, irs);
-		self->clv_offline->reconfigure (self->block_size);
-		if (!(ok = self->clv_offline->ready ())) {
-			delete self->clv_offline;
-			self->clv_offline = NULL;
-		}
-	} catch (std::runtime_error& err) {
-		lv2_log_warning (&self->logger, "ZConvolv Convolver: %s.\n", err.what ());
-		self->clv_offline = NULL;
-	}
-	pthread_mutex_unlock (&self->state_lock);
-
-errout:
 #ifdef LV2_STATE__freePath
 	if (free_path) {
 		free_path->free_path (free_path->handle, path);
