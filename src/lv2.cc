@@ -504,6 +504,9 @@ work_response (LV2_Handle  instance,
 		if (!self->next_queued_file.empty ()) {
 			uint32_t d = CMD_FREE;
 			self->schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
+		} else if (self->clv_online) {
+			inform_ui (self, self->pset_dirty);
+			self->pset_dirty = true;
 		}
 		return LV2_WORKER_SUCCESS;
 	}
@@ -518,10 +521,6 @@ work_response (LV2_Handle  instance,
 	self->clv_online->set_output_gain (db_to_coeff (self->db_dry), db_to_coeff (self->db_wet), false);
 
 	assert (self->clv_online != self->clv_offline || self->clv_online == NULL);
-
-	inform_ui (self, self->pset_dirty);
-
-	self->pset_dirty = true;
 
 	uint32_t d = CMD_FREE;
 	self->schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
@@ -572,11 +571,14 @@ load_ir_worker_locked (zeroConvolv*                self,
 
 	pthread_mutex_unlock (&self->state_lock);
 
+	if (respond) {
+		/* trigger ::inform_ui() in work_response */
+		respond (handle, 1, "");
+	}
+
 	if (!ok) {
 		lv2_log_warning (&self->logger, "ZConvolv Load: configuration failed for ir '%s'.\n", ir_path.c_str ());
 		return LV2_WORKER_ERR_UNKNOWN;
-	} else if (respond) {
-		respond (handle, 1, "");
 	}
 	return LV2_WORKER_SUCCESS;
 }
@@ -622,6 +624,8 @@ work (LV2_Handle                  instance,
 						return load_ir_worker_locked (self, respond, handle, queue_file, unused);
 					} else {
 						pthread_mutex_unlock (&self->state_lock);
+						/* trigger ::inform_ui() in work_response */
+						respond (handle, 1, "");
 					}
 				}
 				break;
