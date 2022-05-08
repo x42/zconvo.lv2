@@ -17,12 +17,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <assert.h>
-#include <math.h>
+#include <cassert>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <pthread.h>
-#include <stdexcept>
-#include <stdlib.h>
 
+#include <stdexcept>
 #include <string>
 
 #include "convolver.h"
@@ -259,10 +260,10 @@ instantiate (const LV2_Descriptor*     descriptor,
 		const int p_min = sched_get_priority_min (rt_policy);
 		const int p_max = sched_get_priority_max (rt_policy);
 		rt_priority     = (p_min + p_max) * .5;
-		lv2_log_note (&logger, "ZConvolv: Using default rt-priority: %d\n", rt_priority);
+		lv2_log_trace (&logger, "ZConvolv: Using default rt-priority: %d\n", rt_priority);
 	} else {
 		/* note: zita-convolver enforces min/max range */
-		lv2_log_note (&logger, "ZConvolv: Using rt-priority: %d\n", rt_priority);
+		lv2_log_trace (&logger, "ZConvolv: Using rt-priority: %d\n", rt_priority);
 	}
 
 	lv2_log_trace (&logger, "ZConvolv: Buffer size: %u\n", block_size);
@@ -530,7 +531,9 @@ work_response (LV2_Handle  instance,
 static void
 set_queue_file (zeroConvolv* self, std::string const& ir_path)
 {
-	lv2_log_note (&self->logger, "ZConvolv: queue ir=%s\n", ir_path.c_str ());
+#ifndef NDEBUG
+	lv2_log_note (&self->logger, "ZConvolv: queue '%s'\n", ir_path.c_str ());
+#endif
 	pthread_mutex_lock (&self->queue_lock);
 	self->next_queued_file = ir_path;
 	pthread_mutex_unlock (&self->queue_lock);
@@ -551,7 +554,9 @@ load_ir_worker_locked (zeroConvolv*                self,
 		return LV2_WORKER_SUCCESS;
 	}
 
-	lv2_log_note (&self->logger, "ZConvolv opening: ir=%s\n", ir_path.c_str ());
+#ifndef NDEBUG // do not log with lock held
+	lv2_log_note (&self->logger, "ZConvolv: loading '%s'\n", ir_path.c_str ());
+#endif
 
 	try {
 		self->clv_offline = new ZeroConvoLV2::Convolver (ir_path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg);
@@ -568,7 +573,7 @@ load_ir_worker_locked (zeroConvolv*                self,
 	pthread_mutex_unlock (&self->state_lock);
 
 	if (!ok) {
-		lv2_log_note (&self->logger, "ZConvolv Load: configuration failed.\n");
+		lv2_log_warning (&self->logger, "ZConvolv Load: configuration failed for ir '%s'.\n", ir_path.c_str ());
 		return LV2_WORKER_ERR_UNKNOWN;
 	} else if (respond) {
 		respond (handle, 1, "");
@@ -614,7 +619,6 @@ work (LV2_Handle                  instance,
 					pthread_mutex_unlock (&self->queue_lock);
 
 					if (!queue_file.empty ()) {
-						lv2_log_note (&self->logger, "ZConvolv process queue: ir=%s\n", queue_file.c_str ());
 						return load_ir_worker_locked (self, respond, handle, queue_file, unused);
 					} else {
 						pthread_mutex_unlock (&self->state_lock);
@@ -630,7 +634,6 @@ work (LV2_Handle                  instance,
 
 	const LV2_Atom* file_path = (const LV2_Atom*)data;
 	const char*     fn        = (const char*)(file_path + 1);
-	lv2_log_note (&self->logger, "ZConvolv request load: ir=%s\n", fn);
 
 	return load_ir_worker (self, respond, handle, std::string (fn, file_path->size), unused);
 }
@@ -736,7 +739,7 @@ restore (LV2_Handle                  instance,
 #endif
 	for (int i = 0; features[i]; ++i) {
 		if (!strcmp (features[i]->URI, LV2_WORKER__schedule)) {
-			lv2_log_note (&self->logger, "ZConvolv State: using thread-safe restore scheduler\n");
+			lv2_log_trace (&self->logger, "ZConvolv State: using thread-safe restore scheduler\n");
 			schedule    = (LV2_Worker_Schedule*)features[i]->data;
 			thread_safe = true;
 		} else if (!strcmp (features[i]->URI, LV2_STATE__mapPath)) {
@@ -752,7 +755,7 @@ restore (LV2_Handle                  instance,
 		return LV2_STATE_ERR_NO_FEATURE;
 	}
 	if (schedule == self->schedule) {
-		lv2_log_warning (&self->logger, "ZConvolv State: using run() scheduler to restore\n");
+		lv2_log_trace (&self->logger, "ZConvolv State: using run() scheduler to restore\n");
 	}
 
 	const void*                         value;
@@ -798,7 +801,7 @@ restore (LV2_Handle                  instance,
 	}
 
 	char* path = map_path->absolute_path (map_path->handle, (const char*)value);
-	lv2_log_note (&self->logger, "ZConvolv State: ir=%s\n", path);
+	lv2_log_trace (&self->logger, "ZConvolv State: ir=%s\n", path);
 
 	LV2_State_Status rv = LV2_STATE_SUCCESS;
 	bool             ok = false;
