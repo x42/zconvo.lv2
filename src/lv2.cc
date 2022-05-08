@@ -587,8 +587,8 @@ work (LV2_Handle                  instance,
 					delete self->clv_offline;
 					self->clv_offline = NULL;
 
-					std::string queue_file = self->next_queued_file;
-					self->next_queued_file.clear ();
+					std::string queue_file;
+					self->next_queued_file.swap (queue_file);
 					pthread_mutex_unlock (&self->state_lock);
 
 					if (!queue_file.empty ()) {
