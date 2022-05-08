@@ -525,13 +525,12 @@ work_response (LV2_Handle  instance,
 }
 
 static LV2_Worker_Status
-load_ir_worker (zeroConvolv*                self,
-                LV2_Worker_Respond_Function respond,
-                LV2_Worker_Respond_Handle   handle,
-                std::string const&          ir_path,
-                bool&                       ok)
+load_ir_worker_locked (zeroConvolv*                self,
+                       LV2_Worker_Respond_Function respond,
+                       LV2_Worker_Respond_Handle   handle,
+                       std::string const&          ir_path,
+                       bool&                       ok)
 {
-	pthread_mutex_lock (&self->state_lock);
 	ok = false;
 
 	if (self->clv_offline) {
@@ -567,6 +566,17 @@ load_ir_worker (zeroConvolv*                self,
 }
 
 static LV2_Worker_Status
+load_ir_worker (zeroConvolv*                self,
+                LV2_Worker_Respond_Function respond,
+                LV2_Worker_Respond_Handle   handle,
+                std::string const&          ir_path,
+                bool&                       ok)
+{
+	pthread_mutex_lock (&self->state_lock);
+	return load_ir_worker_locked (self, respond, handle, ir_path, ok);
+}
+
+static LV2_Worker_Status
 work (LV2_Handle                  instance,
       LV2_Worker_Respond_Function respond,
       LV2_Worker_Respond_Handle   handle,
@@ -589,11 +599,12 @@ work (LV2_Handle                  instance,
 
 					std::string queue_file;
 					self->next_queued_file.swap (queue_file);
-					pthread_mutex_unlock (&self->state_lock);
 
 					if (!queue_file.empty ()) {
 						lv2_log_note (&self->logger, "ZConvolv process queue: ir=%s\n", queue_file.c_str ());
-						return load_ir_worker (self, respond, handle, queue_file, unused);
+						return load_ir_worker_locked (self, respond, handle, queue_file, unused);
+					} else {
+						pthread_mutex_unlock (&self->state_lock);
 					}
 				}
 				break;
