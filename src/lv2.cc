@@ -78,7 +78,19 @@ enum {
 	CMD_SWAP  = 3,
 };
 
-typedef struct {
+struct zeroConvolv {
+	zeroConvolv ()
+	{
+		input[0]   = input[1] = NULL;
+		output[0]  = output[1] = NULL;
+		p_latency  = NULL;
+		p_ctrl[0]  = p_ctrl[1] = p_ctrl [2] = NULL;
+		control    = NULL;
+		notify     = NULL;
+		clv_online = clv_offline = NULL;
+		rt_policy  = rt_priority = 0;
+	}
+
 	LV2_URID_Map*        map;
 	LV2_Worker_Schedule* schedule;
 
@@ -150,7 +162,7 @@ typedef struct {
 
 	/* next IR file to load, acting as queue */
 	std::string next_queued_file;
-} zeroConvolv;
+};
 
 typedef struct {
 	uint32_t child_size;
@@ -270,7 +282,7 @@ instantiate (const LV2_Descriptor*     descriptor,
 
 	lv2_log_trace (&logger, "ZConvolv: Buffer size: %u\n", block_size);
 
-	zeroConvolv* self = (zeroConvolv*)calloc (1, sizeof (zeroConvolv));
+	zeroConvolv* self = new zeroConvolv;
 	if (!self) {
 		return NULL;
 	}
@@ -301,7 +313,7 @@ instantiate (const LV2_Descriptor*     descriptor,
 		self->chn_cfg = ZeroConvoLV2::Convolver::MonoToStereo;
 	} else {
 		lv2_log_error (&logger, "ZConvolv: Invalid URI\n");
-		free (self);
+		delete self;
 		return NULL;
 	}
 
@@ -488,7 +500,7 @@ cleanup (LV2_Handle instance)
 	pthread_mutex_unlock (&instance_count_lock);
 #endif
 
-	free (instance);
+	delete self;
 }
 
 static LV2_Worker_Status
