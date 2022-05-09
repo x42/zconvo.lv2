@@ -813,8 +813,6 @@ restore (LV2_Handle                  instance,
 	LV2_State_Status rv = LV2_STATE_SUCCESS;
 	bool             ok = false;
 
-	self->pset_dirty = false; // XXX reset after queued state is loaded.
-
 	if (pthread_mutex_trylock (&self->state_lock)) {
 		/* The worker is busy, just queue file. This will be processed
 		 * when the worker triggers a work response. */
