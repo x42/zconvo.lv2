@@ -820,21 +820,14 @@ restore (LV2_Handle                  instance,
 		 * when the worker triggers a work response. */
 		set_queue_file (self, path);
 	} else if (thread_safe) {
+		pthread_mutex_unlock (&self->state_lock);
 		/* schedule for loading in the background */
-		uint8_t mem[4096]; // PATH_MAX
-#if 1
-		LV2_Atom_Forge forge;
-		lv2_atom_forge_init (&forge, self->map);
-		lv2_atom_forge_set_buffer (&forge, mem, sizeof (mem));
-		LV2_Atom* msg = (LV2_Atom*)lv2_atom_forge_path (&forge, path, strlen (path));
-		self->schedule->schedule_work (self->schedule->handle, lv2_atom_total_size (msg), msg);
-#else
+		uint8_t* mem = (uint8_t*) malloc (strlen (path) + sizeof (LV2_Atom) + 1);
 		LV2_Atom pa{uint32_t (1 + strlen (path)), self->atom_String};
 		memcpy (mem, &pa, sizeof (LV2_Atom));
 		memcpy (&mem[sizeof (LV2_Atom)], path, 1 + strlen (path));
 		self->schedule->schedule_work (self->schedule->handle, lv2_atom_total_size ((const LV2_Atom*)mem), mem);
-#endif
-		pthread_mutex_unlock (&self->state_lock);
+		free (mem);
 	} else {
 		/* load it immediately, blocking wait */
 		switch (load_ir_worker_locked (self, NULL, NULL, path, ok)) {
