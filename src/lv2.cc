@@ -74,6 +74,8 @@ static unsigned int    instance_count      = 0;
 enum {
 	CMD_APPLY = 0,
 	CMD_FREE  = 1,
+	CMD_INFO  = 2,
+	CMD_SWAP  = 3,
 };
 
 typedef struct {
@@ -496,6 +498,14 @@ work_response (LV2_Handle  instance,
 {
 	zeroConvolv* self = (zeroConvolv*)instance;
 
+	if (size == sizeof (uint32_t) && *((const uint32_t*)data) == CMD_INFO) {
+		if (self->clv_online) {
+			inform_ui (self, self->pset_dirty);
+			self->pset_dirty = true;
+		}
+		return LV2_WORKER_SUCCESS;
+	}
+
 	if (!self->clv_offline) {
 		/* If loading an IR file fails (NULL == clv_offline),
 		 * there may still be a file in the queue. A "Free"
@@ -504,9 +514,6 @@ work_response (LV2_Handle  instance,
 		if (!self->next_queued_file.empty ()) {
 			uint32_t d = CMD_FREE;
 			self->schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
-		} else if (self->clv_online) {
-			inform_ui (self, self->pset_dirty);
-			self->pset_dirty = true;
 		}
 		return LV2_WORKER_SUCCESS;
 	}
@@ -576,7 +583,8 @@ load_ir_worker_locked (zeroConvolv*                self,
 		 * if ok, work_response() swaps instances, and triggers CMD_FREE
 		 * else, work_response() calls ::inform_ui() with most recent successfully loaded IR
 		 */
-		respond (handle, 1, "");
+		uint32_t d = ok ? CMD_SWAP : CMD_INFO;
+		respond (handle, sizeof (uint32_t), &d);
 	}
 
 	if (!ok) {
@@ -628,7 +636,8 @@ work (LV2_Handle                  instance,
 					} else {
 						pthread_mutex_unlock (&self->state_lock);
 						/* trigger ::inform_ui() in work_response */
-						respond (handle, 1, "");
+						uint32_t d = CMD_INFO;
+						respond (handle, sizeof (uint32_t), &d);
 					}
 				}
 				break;
@@ -831,8 +840,14 @@ restore (LV2_Handle                  instance,
 		switch (load_ir_worker_locked (self, NULL, NULL, path, ok)) {
 			case LV2_WORKER_ERR_UNKNOWN:
 				rv = LV2_STATE_ERR_NO_PROPERTY;
+				assert (!ok);
 				break;
 			default:
+				/* success.
+				 * ok == true: file has been loaded to offline instance
+				 * ok == false: file has been queued (will be processed
+				 *              after the current instance is free()ed.
+				 */
 				break;
 		}
 	}
@@ -851,6 +866,8 @@ restore (LV2_Handle                  instance,
 	if (!ok) {
 		return rv;
 	} else {
+		/* We cannot directly queue a synchroneous instance swap,
+		 * so we ask the worker to schedule this for us */
 		self->pset_dirty = false;
 		uint32_t d       = CMD_APPLY;
 		schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
