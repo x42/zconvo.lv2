@@ -440,8 +440,6 @@ Convproc::print (FILE* F)
 	}
 }
 
-typedef float FV4 __attribute__ ((vector_size (16)));
-
 Convlevel::Convlevel (void)
 	: _stat (ST_IDLE)
 	, _npar (0)
