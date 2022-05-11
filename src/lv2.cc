@@ -1,6 +1,6 @@
 /* zeroconvolv -- Preset based LV2 convolution plugin
  *
- * Copyright (C) 2018 Robin Gareus <robin@gareus.org>
+ * Copyright (C) 2018-2022 Robin Gareus <robin@gareus.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -897,19 +897,22 @@ static uint32_t
 opts_set (LV2_Handle instance, const LV2_Options_Option* options)
 {
 	zeroConvolv* self = (zeroConvolv*)instance;
-	if (options->context != LV2_OPTIONS_INSTANCE || options->subject != 0) {
-		return LV2_OPTIONS_ERR_BAD_SUBJECT;
-	}
-	if (options->key != self->bufsz_len) {
-		return LV2_OPTIONS_ERR_BAD_KEY;
-	}
-	if (options->size != sizeof (int32_t) || options->type != self->atom_Int) {
-		return LV2_OPTIONS_ERR_BAD_VALUE;
-	}
 
-	self->block_size = *((int32_t*)options->value);
-	if (self->clv_online) {
-		self->clv_online->reconfigure (self->block_size);
+	for (uint32_t i = 0; 0 != options[i].key; ++i) {
+		if (options[i].context != LV2_OPTIONS_INSTANCE || options[i].subject != 0) {
+			return LV2_OPTIONS_ERR_BAD_SUBJECT;
+		}
+		if (options[i].key != self->bufsz_len) {
+			continue;
+		}
+		if (options[i].size != sizeof (int32_t) || options[i].type != self->atom_Int) {
+			return LV2_OPTIONS_ERR_BAD_VALUE;
+		}
+		self->block_size = *((int32_t*)options[i].value);
+		if (self->clv_online) {
+			self->clv_online->reconfigure (self->block_size);
+		}
+		break;
 	}
 	return LV2_OPTIONS_SUCCESS;
 }
