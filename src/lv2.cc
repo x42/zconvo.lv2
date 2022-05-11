@@ -899,8 +899,8 @@ opts_set (LV2_Handle instance, const LV2_Options_Option* options)
 	zeroConvolv* self = (zeroConvolv*)instance;
 
 	for (uint32_t i = 0; 0 != options[i].key; ++i) {
-		if (options[i].context != LV2_OPTIONS_INSTANCE || options[i].subject != 0) {
-			return LV2_OPTIONS_ERR_BAD_SUBJECT;
+		if (options[i].context != LV2_OPTIONS_INSTANCE) {
+			continue;
 		}
 		if (options[i].key != self->bufsz_len) {
 			continue;
