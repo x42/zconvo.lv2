@@ -44,6 +44,11 @@
 	rdfs:label "Signal Level Gain";
 	rdfs:range atom:Float.
 
+<http://gareus.org/oss/lv2/@LV2NAME@#sum_inputs>
+	a lv2:Parameter;
+	rdfs:label "Downmix stereo input (only useful with true-stereo varian)";
+	rdfs:range atom:Bool.
+
 <http://gareus.org/oss/lv2/@LV2NAME@#predelay>
 	a lv2:Parameter;
 	rdfs:label "Pre-delay";
@@ -58,3 +63,8 @@
 	a lv2:Parameter;
 	rdfs:label "Pre-delay per channel";
 	rdfs:range atom:Vector.
+
+<http://gareus.org/oss/lv2/@LV2NAME@#artificial_latency>
+	a lv2:Parameter;
+	rdfs:label "Artificial latency to be announced to the host (inverse pre-delay, useful for FIR filters)";
+	rdfs:range atom:Int.
