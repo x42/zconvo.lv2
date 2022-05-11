@@ -7,6 +7,7 @@
 @prefix opts:  <http://lv2plug.in/ns/ext/options#> .
 @prefix patch: <http://lv2plug.in/ns/ext/patch#> .
 @prefix pg:    <http://lv2plug.in/ns/ext/port-groups#>.
+@prefix pp:    <http://lv2plug.in/ns/ext/port-props#> .
 @prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#>.
 @prefix state: <http://lv2plug.in/ns/ext/state#>.
@@ -191,6 +192,7 @@ conv:CfgMono
 		lv2:minimum 0 ;
 		lv2:maximum 1 ;
 		lv2:portProperty lv2:integer, lv2:toggled;
+		lv2:portProperty pp:causesArtifacts, pp:notAutomatic;
 	] , [
 		a lv2:InputPort , lv2:ControlPort ;
 		lv2:index 3 ;
@@ -281,6 +283,7 @@ conv:CfgStereo
 		lv2:minimum 0 ;
 		lv2:maximum 1 ;
 		lv2:portProperty lv2:integer, lv2:toggled;
+		lv2:portProperty pp:causesArtifacts, pp:notAutomatic;
 	] , [
 		a lv2:InputPort , lv2:ControlPort ;
 		lv2:index 3 ;
@@ -385,6 +388,7 @@ conv:CfgMonoToStereo
 		lv2:minimum 0 ;
 		lv2:maximum 1 ;
 		lv2:portProperty lv2:integer, lv2:toggled;
+		lv2:portProperty pp:causesArtifacts, pp:notAutomatic;
 	] , [
 		a lv2:InputPort , lv2:ControlPort ;
 		lv2:index 3 ;
