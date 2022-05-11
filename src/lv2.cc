@@ -1083,7 +1083,6 @@ run_cfg (LV2_Handle instance, uint32_t n_samples)
 
 	if (self->clv_online) {
 		run (instance, n_samples);
-		*self->p_latency = self->clv_online->artificial_latency ();
 		return;
 	}
 
