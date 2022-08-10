@@ -2,15 +2,31 @@
 PREFIX ?= /usr/local
 LV2DIR ?= $(PREFIX)/lib/lv2
 
-OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
-CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
-
 PKG_CONFIG ?= pkg-config
 STRIP      ?= strip
 
 zconvo_VERSION ?= $(shell (git describe --tags HEAD || echo "0") | sed 's/-g.*$$//;s/^v//')
 
 ###############################################################################
+
+MACHINE=$(shell uname -m)
+ifneq (,$(findstring x64,$(MACHINE)))
+  HAVE_SSE=yes
+endif
+ifneq (,$(findstring 86,$(MACHINE)))
+  HAVE_SSE=yes
+endif
+
+ifeq ($(HAVE_SSE),yes)
+  OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse --fast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
+else
+  OPTIMIZATIONS ?= -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
+endif
+
+###############################################################################
+CFLAGS ?= $(OPTIMIZATIONS) -Wall
+CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
+
 BUILDDIR=build/
 
 LV2NAME=zeroconvolv
