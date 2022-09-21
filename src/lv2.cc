@@ -850,6 +850,7 @@ restore (LV2_Handle                  instance,
 		memcpy (mem+1, path, 1 + strlen (path));
 		self->schedule->schedule_work (self->schedule->handle, lv2_atom_total_size (mem), mem);
 		free (mem);
+		self->in_restore = false;
 	} else {
 		/* load it immediately, blocking wait */
 		switch (load_ir_worker_locked (self, NULL, NULL, path, ok)) {
