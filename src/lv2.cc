@@ -81,14 +81,15 @@ enum {
 struct zeroConvolv {
 	zeroConvolv ()
 	{
-		input[0]   = input[1] = NULL;
-		output[0]  = output[1] = NULL;
-		p_latency  = NULL;
-		p_ctrl[0]  = p_ctrl[1] = p_ctrl [2] = p_ctrl [3] = NULL;
-		control    = NULL;
-		notify     = NULL;
-		clv_online = clv_offline = NULL;
-		rt_policy  = rt_priority = 0;
+		input[0]    = input[1] = NULL;
+		output[0]   = output[1] = NULL;
+		p_latency   = NULL;
+		p_ctrl[0]   = p_ctrl[1] = p_ctrl [2] = p_ctrl [3] = NULL;
+		control     = NULL;
+		notify      = NULL;
+		clv_online  = clv_offline = NULL;
+		rt_policy   = rt_priority = 0;
+		in_restore  = false;
 	}
 
 	LV2_URID_Map*        map;
@@ -162,6 +163,7 @@ struct zeroConvolv {
 
 	/* next IR file to load, acting as queue */
 	std::string next_queued_file;
+	bool        in_restore; // thread-safe restore
 };
 
 typedef struct {
@@ -755,7 +757,8 @@ restore (LV2_Handle                  instance,
 	size_t       size;
 	uint32_t     type;
 	uint32_t     valflags;
-	bool         thread_safe = false;
+
+	self->in_restore = false;
 
 	/* Get the work scheduler provided to restore() (state:threadSafeRestore
 	 * support), but fall back to instantiate() schedules (spec-violating
@@ -769,7 +772,7 @@ restore (LV2_Handle                  instance,
 		if (!strcmp (features[i]->URI, LV2_WORKER__schedule)) {
 			lv2_log_trace (&self->logger, "ZConvolv State: using thread-safe restore scheduler\n");
 			schedule    = (LV2_Worker_Schedule*)features[i]->data;
-			thread_safe = true;
+			self->in_restore = true;
 		} else if (!strcmp (features[i]->URI, LV2_STATE__mapPath)) {
 			map_path = (LV2_State_Map_Path*)features[i]->data;
 		}
@@ -838,7 +841,7 @@ restore (LV2_Handle                  instance,
 		/* The worker is busy, just queue file. This will be processed
 		 * when the worker triggers a work response. */
 		set_queue_file (self, path);
-	} else if (thread_safe) {
+	} else if (self->in_restore) {
 		pthread_mutex_unlock (&self->state_lock);
 		/* schedule for loading in the background */
 		LV2_Atom* mem = (LV2_Atom*) malloc (strlen (path) + sizeof (LV2_Atom) + 1);
@@ -951,7 +954,7 @@ db_to_coeff (float db)
 static void
 inform_ui (zeroConvolv* self, bool mark_dirty)
 {
-	if (!self->control || !self->notify) {
+	if (!self->control || !self->notify || self->in_restore) {
 		return;
 	}
 	if (!self->clv_online || self->clv_online->path ().empty ()) {
