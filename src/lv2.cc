@@ -163,7 +163,7 @@ struct zeroConvolv {
 
 	/* next IR file to load, acting as queue */
 	std::string next_queued_file;
-	bool        in_restore; // thread-safe restore
+	bool        in_restore;
 };
 
 typedef struct {
@@ -757,8 +757,7 @@ restore (LV2_Handle                  instance,
 	size_t       size;
 	uint32_t     type;
 	uint32_t     valflags;
-
-	self->in_restore = false;
+	bool         thread_safe = false;
 
 	/* Get the work scheduler provided to restore() (state:threadSafeRestore
 	 * support), but fall back to instantiate() schedules (spec-violating
@@ -772,7 +771,7 @@ restore (LV2_Handle                  instance,
 		if (!strcmp (features[i]->URI, LV2_WORKER__schedule)) {
 			lv2_log_trace (&self->logger, "ZConvolv State: using thread-safe restore scheduler\n");
 			schedule    = (LV2_Worker_Schedule*)features[i]->data;
-			self->in_restore = true;
+			thread_safe = true;
 		} else if (!strcmp (features[i]->URI, LV2_STATE__mapPath)) {
 			map_path = (LV2_State_Map_Path*)features[i]->data;
 		}
@@ -841,18 +840,18 @@ restore (LV2_Handle                  instance,
 		/* The worker is busy, just queue file. This will be processed
 		 * when the worker triggers a work response. */
 		set_queue_file (self, path);
-	} else if (self->in_restore) {
+	} else if (thread_safe) {
 		pthread_mutex_unlock (&self->state_lock);
 		/* schedule for loading in the background */
 		LV2_Atom* mem = (LV2_Atom*) malloc (strlen (path) + sizeof (LV2_Atom) + 1);
 		mem->type     = self->atom_String;
 		mem->size     = uint32_t (1 + strlen (path));
 		memcpy (mem+1, path, 1 + strlen (path));
-		self->schedule->schedule_work (self->schedule->handle, lv2_atom_total_size (mem), mem);
+		schedule->schedule_work (schedule->handle, lv2_atom_total_size (mem), mem);
 		free (mem);
-		self->in_restore = false;
 	} else {
 		/* load it immediately, blocking wait */
+		self->in_restore = true;
 		switch (load_ir_worker_locked (self, NULL, NULL, path, ok)) {
 			case LV2_WORKER_ERR_UNKNOWN:
 				rv = LV2_STATE_ERR_NO_PROPERTY;
@@ -866,6 +865,7 @@ restore (LV2_Handle                  instance,
 				 */
 				break;
 		}
+		self->in_restore = false;
 	}
 
 #ifdef LV2_STATE__freePath
@@ -884,9 +884,11 @@ restore (LV2_Handle                  instance,
 	} else {
 		/* We cannot directly queue a synchroneous instance swap,
 		 * so we ask the worker to schedule this for us */
+		self->in_restore = true;
 		self->pset_dirty = false;
 		uint32_t d       = CMD_APPLY;
 		schedule->schedule_work (self->schedule->handle, sizeof (uint32_t), &d);
+		self->in_restore = false;
 		return LV2_STATE_SUCCESS;
 	}
 }
