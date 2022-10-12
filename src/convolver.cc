@@ -99,11 +99,11 @@ TimeDomainConvolver::reset ()
 void
 TimeDomainConvolver::configure (Readable* r, float gain, uint32_t delay)
 {
-	const uint32_t _ir_len = sizeof (_ir) / sizeof (float);
-	if (delay >= _ir_len) {
+	const uint32_t ir_len = sizeof (_ir) / sizeof (float);
+	if (delay >= ir_len) {
 		return;
 	}
-	uint32_t to_read = std::min (_ir_len, delay);
+	uint32_t to_read = std::min (ir_len, delay);
 	uint32_t max_len = r->readable_length ();
 	if (delay < max_len) {
 		to_read = std::min (to_read, max_len - delay);
@@ -115,7 +115,7 @@ TimeDomainConvolver::configure (Readable* r, float gain, uint32_t delay)
 	r->read (&_ir[delay], 0, to_read, 0);
 
 	if (gain != 1.f) {
-		for (uint32_t i = delay; i < _ir_len; ++i) {
+		for (uint32_t i = delay; i < ir_len; ++i) {
 			_ir[i] *= gain;
 		}
 	}
