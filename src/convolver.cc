@@ -92,17 +92,18 @@ TimeDomainConvolver::TimeDomainConvolver ()
 void
 TimeDomainConvolver::reset ()
 {
-	memset (_ir, 0, 64 * sizeof (float));
+	memset (_ir, 0, sizeof (_ir));
 	_enabled = false;
 }
 
 void
 TimeDomainConvolver::configure (Readable* r, float gain, uint32_t delay)
 {
-	if (delay >= 64) {
+	const uint32_t _ir_len = sizeof (_ir) / sizeof (float);
+	if (delay >= _ir_len) {
 		return;
 	}
-	uint32_t to_read = std::min ((uint32_t)64, delay);
+	uint32_t to_read = std::min (_ir_len, delay);
 	uint32_t max_len = r->readable_length ();
 	if (delay < max_len) {
 		to_read = std::min (to_read, max_len - delay);
@@ -114,7 +115,7 @@ TimeDomainConvolver::configure (Readable* r, float gain, uint32_t delay)
 	r->read (&_ir[delay], 0, to_read, 0);
 
 	if (gain != 1.f) {
-		for (uint64_t i = delay; i < 64; ++i) {
+		for (uint32_t i = delay; i < _ir_len; ++i) {
 			_ir[i] *= gain;
 		}
 	}
@@ -414,7 +415,7 @@ Convolver::output (float* dst, const float* src, uint32_t n) const
 	} else {
 		const float dry = _dry;
 		const float wet = _wet;
-		for (uint64_t i = 0; i < n; ++i) {
+		for (uint32_t i = 0; i < n; ++i) {
 			dst[i] = dry * dst[i] + wet * src[i];
 		}
 	}
