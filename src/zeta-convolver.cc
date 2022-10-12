@@ -91,9 +91,9 @@ Convproc::Convproc (void)
 	, _nlevels (0)
 	, _latecnt (0)
 {
-	memset (_inpbuff, 0, sizeof (_inpbuff));
-	memset (_outbuff, 0, sizeof (_outbuff));
-	memset (_convlev, 0, sizeof (_convlev));
+	memset (_inpbuff, 0, sizeof (_inpbuff)); // MAXINP
+	memset (_outbuff, 0, sizeof (_outbuff)); // MAXOUT
+	memset (_convlev, 0, sizeof (_convlev)); // MAXLEV
 }
 
 Convproc::~Convproc (void)
