@@ -289,7 +289,8 @@ Convproc::start_process (int abspri, int policy, double period_ns)
 
 	for (k = (_minpart == _quantum) ? 1 : 0; k < _nlevels; k++) {
 		if (!_convlev[k]->start (abspri, policy, period_ns)) {
-			cleanup();
+			stop_process (true);
+			cleanup ();
 			return Converror::BAD_STATE;
 		}
 	}
@@ -365,11 +366,11 @@ Convproc::tailonly (uint32_t n_samples)
 }
 
 int
-Convproc::stop_process (void)
+Convproc::stop_process (bool force)
 {
 	uint32_t k;
 
-	if (_state != ST_PROC) {
+	if (_state != ST_PROC && !force) {
 		return Converror::BAD_STATE;
 	}
 	for (k = 0; k < _nlevels; k++) {

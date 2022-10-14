@@ -392,7 +392,7 @@ public:
 	int process ();
 	int tailonly (uint32_t n_samples);
 
-	int stop_process (void);
+	int stop_process (bool force = false);
 
 	bool check_started (uint32_t);
 	bool check_stop (void);
