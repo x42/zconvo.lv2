@@ -266,7 +266,7 @@ private:
 	            float**  inpbuff,
 	            float**  outbuff);
 
-	void start (int absprio, int policy, double period_ns);
+	bool start (int absprio, int policy, double period_ns);
 
 	void process ();
 

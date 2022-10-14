@@ -288,7 +288,10 @@ Convproc::start_process (int abspri, int policy, double period_ns)
 	reset ();
 
 	for (k = (_minpart == _quantum) ? 1 : 0; k < _nlevels; k++) {
-		_convlev[k]->start (abspri, policy, period_ns);
+		if (!_convlev[k]->start (abspri, policy, period_ns)) {
+			cleanup();
+			return Converror::BAD_STATE;
+		}
 	}
 
 	while (!check_started ((_minpart == _quantum) ? 1 : 0)) {
@@ -610,7 +613,7 @@ Convlevel::reset (uint32_t inpsize,
 	_done.init (0, 0);
 }
 
-void
+bool
 Convlevel::start (int abspri, int policy, double period_ns)
 {
 	int                min, max;
@@ -637,7 +640,9 @@ Convlevel::start (int abspri, int policy, double period_ns)
 	pthread_attr_setscope (&attr, PTHREAD_SCOPE_SYSTEM);
 	pthread_attr_setinheritsched (&attr, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setstacksize (&attr, 0x10000);
-	pthread_create (&_pthr, &attr, static_main, this);
+	if (pthread_create (&_pthr, &attr, static_main, this) != 0) {
+		return false;
+	}
 	pthread_attr_destroy (&attr);
 
 #ifdef __APPLE__
@@ -676,6 +681,7 @@ Convlevel::start (int abspri, int policy, double period_ns)
 		                   THREAD_TIME_CONSTRAINT_POLICY_COUNT);
 	}
 #endif
+	return true;
 }
 
 void
