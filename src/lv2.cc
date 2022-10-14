@@ -273,9 +273,14 @@ instantiate (const LV2_Descriptor*     descriptor,
 	}
 
 	if (rt_priority == 0) {
-		const int p_min = sched_get_priority_min (rt_policy);
 		const int p_max = sched_get_priority_max (rt_policy);
+#ifdef _WIN32
+		/* https://github.com/tbeu/win-pthread/blob/master/sched_get_priority_max.c#L102-L117 */
+		rt_priority = p_max - 1;
+#else
+		const int p_min = sched_get_priority_min (rt_policy);
 		rt_priority     = (p_min + p_max) * .5;
+#endif
 		lv2_log_trace (&logger, "ZConvolv: Using default rt-priority: %d\n", rt_priority);
 	} else {
 		/* note: zita-convolver enforces min/max range */
