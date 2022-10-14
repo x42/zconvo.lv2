@@ -848,10 +848,10 @@ restore (LV2_Handle                  instance,
 	} else if (thread_safe) {
 		pthread_mutex_unlock (&self->state_lock);
 		/* schedule for loading in the background */
-		LV2_Atom* mem = (LV2_Atom*) malloc (strlen (path) + sizeof (LV2_Atom) + 1);
+		LV2_Atom* mem = (LV2_Atom*)malloc (strlen (path) + sizeof (LV2_Atom) + 1);
 		mem->type     = self->atom_String;
 		mem->size     = uint32_t (1 + strlen (path));
-		memcpy (mem+1, path, 1 + strlen (path));
+		memcpy (mem + 1, path, 1 + strlen (path));
 		schedule->schedule_work (schedule->handle, lv2_atom_total_size (mem), mem);
 		free (mem);
 	} else {
