@@ -642,16 +642,23 @@ Convlevel::start (int abspri, int policy, double period_ns)
 	pthread_attr_setinheritsched (&attr, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setstacksize (&attr, 0x10000);
 	if (pthread_create (&_pthr, &attr, static_main, this) != 0) {
-		// failed to start with RT prio, try without it
 		pthread_attr_destroy (&attr);
+		/* Failed to acquire realtime permissions. */
+#ifndef REQUIRE_HARD_RT_CAPABILITY
+		/* Try to start thread with default scheduling priority.
+		 * TODO: pass this up and emit a lv2_log_warning()
+		 */
 		pthread_attr_init (&attr);
 		pthread_attr_setscope (&attr, PTHREAD_SCOPE_SYSTEM);
 		pthread_attr_setstacksize (&attr, 0x10000);
 		if (pthread_create (&_pthr, &attr, static_main, this) != 0) {
-			// RT-less failed too, abort
+			/* Failed to create process thread */
 			pthread_attr_destroy (&attr);
 			return false;
 		}
+#else
+		return false;
+#endif
 	}
 	pthread_attr_destroy (&attr);
 
