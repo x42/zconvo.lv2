@@ -641,7 +641,16 @@ Convlevel::start (int abspri, int policy, double period_ns)
 	pthread_attr_setinheritsched (&attr, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setstacksize (&attr, 0x10000);
 	if (pthread_create (&_pthr, &attr, static_main, this) != 0) {
-		return false;
+		// failed to start with RT prio, try without it
+		pthread_attr_destroy (&attr);
+		pthread_attr_init (&attr);
+		pthread_attr_setscope (&attr, PTHREAD_SCOPE_SYSTEM);
+		pthread_attr_setstacksize (&attr, 0x10000);
+		if (pthread_create (&_pthr, &attr, static_main, this) != 0) {
+			// RT-less failed too, abort
+			pthread_attr_destroy (&attr);
+			return false;
+		}
 	}
 	pthread_attr_destroy (&attr);
 
