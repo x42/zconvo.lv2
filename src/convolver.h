@@ -114,6 +114,7 @@ public:
 	int32_t artificial_latency () const { return _artificial_latency; }
 
 	bool ready () const;
+	bool reset ();
 
 private:
 	void interpolate_gain ();

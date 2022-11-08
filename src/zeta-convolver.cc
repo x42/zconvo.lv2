@@ -269,8 +269,11 @@ Convproc::reset (void)
 		memset (_outbuff[k], 0, _minpart * sizeof (float));
 	}
 	for (k = 0; k < _nlevels; k++) {
-		_convlev[k]->reset (_inpsize, _minpart, _inpbuff, _outbuff);
+		_convlev[k]->reset (_inpsize, _minpart, _inpbuff, _outbuff, false);
 	}
+	_latecnt = 0;
+	_inpoffs = 0;
+	_outoffs = 0;
 	return 0;
 }
 
@@ -579,7 +582,8 @@ void
 Convlevel::reset (uint32_t inpsize,
                   uint32_t outsize,
                   float**  inpbuff,
-                  float**  outbuff)
+                  float**  outbuff,
+                  bool     withsem)
 {
 	uint32_t i;
 	Inpnode* X;
@@ -610,6 +614,9 @@ Convlevel::reset (uint32_t inpsize,
 	_wait  = 0;
 	_ptind = 0;
 	_opind = 0;
+	if (!withsem) {
+		return;
+	}
 	_trig.init (0, 0);
 	_done.init (0, 0);
 }

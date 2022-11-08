@@ -410,7 +410,7 @@ activate (LV2_Handle instance)
 {
 	zeroConvolv* self = (zeroConvolv*)instance;
 	if (self->clv_online) {
-		self->clv_online->reconfigure (self->block_size);
+		self->clv_online->reset ();
 	}
 }
 

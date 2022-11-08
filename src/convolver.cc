@@ -379,6 +379,15 @@ Convolver::ready () const
 	return _configured && _convproc.state () == Convproc::ST_PROC;
 }
 
+bool
+Convolver::reset ()
+{
+	if (!ready ()) {
+		return false;
+	}
+	return 0 == _convproc.reset ();
+}
+
 void
 Convolver::set_output_gain (float dry, float wet, bool interpolate)
 {

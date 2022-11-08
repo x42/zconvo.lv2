@@ -264,7 +264,8 @@ private:
 	void reset (uint32_t inpsize,
 	            uint32_t outsize,
 	            float**  inpbuff,
-	            float**  outbuff);
+	            float**  outbuff,
+	            bool     withsem = true);
 
 	bool start (int absprio, int policy, double period_ns);
 
