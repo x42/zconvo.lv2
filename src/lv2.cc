@@ -162,8 +162,9 @@ struct zeroConvolv {
 	float    tc64;
 
 	/* next IR file to load, acting as queue */
-	std::string next_queued_file;
-	bool        in_restore;
+	std::string                         next_queued_file;
+	ZeroConvoLV2::Convolver::IRSettings next_queued_irs;
+	bool                                in_restore;
 };
 
 typedef struct {
@@ -554,27 +555,29 @@ work_response (LV2_Handle  instance,
 }
 
 static void
-set_queue_file (zeroConvolv* self, std::string const& ir_path)
+set_queue (zeroConvolv* self, std::string const& ir_path, ZeroConvoLV2::Convolver::IRSettings const& irs)
 {
 #ifndef NDEBUG
 	lv2_log_note (&self->logger, "ZConvolv: queue '%s'\n", ir_path.c_str ());
 #endif
 	pthread_mutex_lock (&self->queue_lock);
 	self->next_queued_file = ir_path;
+	self->next_queued_irs  = irs;
 	pthread_mutex_unlock (&self->queue_lock);
 }
 
 static LV2_Worker_Status
-load_ir_worker_locked (zeroConvolv*                self,
-                       LV2_Worker_Respond_Function respond,
-                       LV2_Worker_Respond_Handle   handle,
-                       std::string const&          ir_path,
-                       bool&                       ok)
+load_ir_worker_locked (zeroConvolv*                        self,
+                       LV2_Worker_Respond_Function         respond,
+                       LV2_Worker_Respond_Handle           handle,
+                       std::string const&                  ir_path,
+                       ZeroConvoLV2::Convolver::IRSettings irs,
+                       bool&                               ok)
 {
 	ok = false;
 
 	if (self->clv_offline) {
-		set_queue_file (self, ir_path);
+		set_queue (self, ir_path, irs);
 		pthread_mutex_unlock (&self->state_lock);
 		return LV2_WORKER_SUCCESS;
 	}
@@ -584,7 +587,7 @@ load_ir_worker_locked (zeroConvolv*                self,
 #endif
 
 	try {
-		self->clv_offline = new ZeroConvoLV2::Convolver (ir_path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg);
+		self->clv_offline = new ZeroConvoLV2::Convolver (ir_path, self->rate, self->rt_policy, self->rt_priority, self->chn_cfg, irs);
 		self->clv_offline->reconfigure (self->block_size);
 		if (!(ok = self->clv_offline->ready ())) {
 			delete self->clv_offline;
@@ -614,14 +617,15 @@ load_ir_worker_locked (zeroConvolv*                self,
 }
 
 static LV2_Worker_Status
-load_ir_worker (zeroConvolv*                self,
-                LV2_Worker_Respond_Function respond,
-                LV2_Worker_Respond_Handle   handle,
-                std::string const&          ir_path,
-                bool&                       ok)
+load_ir_worker (zeroConvolv*                        self,
+                LV2_Worker_Respond_Function         respond,
+                LV2_Worker_Respond_Handle           handle,
+                std::string const&                  ir_path,
+                ZeroConvoLV2::Convolver::IRSettings irs,
+                bool&                               ok)
 {
 	pthread_mutex_lock (&self->state_lock);
-	return load_ir_worker_locked (self, respond, handle, ir_path, ok);
+	return load_ir_worker_locked (self, respond, handle, ir_path, irs, ok);
 }
 
 static LV2_Worker_Status
@@ -648,10 +652,11 @@ work (LV2_Handle                  instance,
 					pthread_mutex_lock (&self->queue_lock);
 					std::string queue_file;
 					self->next_queued_file.swap (queue_file);
+					ZeroConvoLV2::Convolver::IRSettings irs = self->next_queued_irs;
 					pthread_mutex_unlock (&self->queue_lock);
 
 					if (!queue_file.empty ()) {
-						return load_ir_worker_locked (self, respond, handle, queue_file, unused);
+						return load_ir_worker_locked (self, respond, handle, queue_file, irs, unused);
 					} else {
 						pthread_mutex_unlock (&self->state_lock);
 						/* trigger ::inform_ui() in work_response */
@@ -667,10 +672,23 @@ work (LV2_Handle                  instance,
 		return LV2_WORKER_SUCCESS;
 	}
 
-	const LV2_Atom* file_path = (const LV2_Atom*)data;
-	const char*     fn        = (const char*)(file_path + 1);
+	ZeroConvoLV2::Convolver::IRSettings irs;
+	const char*                         fn;
 
-	return load_ir_worker (self, respond, handle, std::string (fn, file_path->size), unused);
+	size_t const irssize = sizeof (ZeroConvoLV2::Convolver::IRSettings);
+
+	const LV2_Atom* a = (const LV2_Atom*)data;
+	if (a->type == self->atom_String) {
+		fn = (const char*)(a + 1);
+	} else if (a->type == self->atom_Blank && a->size > irssize) {
+		uint8_t const* mp = (uint8_t const*)(a + 1);
+		fn                = (const char*)(mp + irssize);
+		memcpy (&irs, mp, irssize);
+	} else {
+		return LV2_WORKER_ERR_UNKNOWN;
+	}
+
+	return load_ir_worker (self, respond, handle, std::string (fn, a->size - irssize), irs, unused);
 }
 
 static LV2_State_Status
@@ -844,20 +862,23 @@ restore (LV2_Handle                  instance,
 	if (pthread_mutex_trylock (&self->state_lock)) {
 		/* The worker is busy, just queue file. This will be processed
 		 * when the worker triggers a work response. */
-		set_queue_file (self, path);
+		set_queue (self, path, irs);
 	} else if (thread_safe) {
 		pthread_mutex_unlock (&self->state_lock);
+		size_t const irssize = sizeof (ZeroConvoLV2::Convolver::IRSettings);
 		/* schedule for loading in the background */
-		LV2_Atom* mem = (LV2_Atom*)malloc (strlen (path) + sizeof (LV2_Atom) + 1);
-		mem->type     = self->atom_String;
-		mem->size     = uint32_t (1 + strlen (path));
-		memcpy (mem + 1, path, 1 + strlen (path));
+		LV2_Atom* mem = (LV2_Atom*)malloc (irssize + strlen (path) + sizeof (LV2_Atom) + 1);
+		mem->type     = self->atom_Blank;
+		mem->size     = uint32_t (1 + irssize + strlen (path));
+		uint8_t* mp   = (uint8_t*)(mem + 1);
+		memcpy (mp, &irs, irssize);
+		memcpy (mp + irssize, path, 1 + strlen (path));
 		schedule->schedule_work (schedule->handle, lv2_atom_total_size (mem), mem);
 		free (mem);
 	} else {
 		/* load it immediately, blocking wait */
 		self->in_restore = true;
-		switch (load_ir_worker_locked (self, NULL, NULL, path, ok)) {
+		switch (load_ir_worker_locked (self, NULL, NULL, path, irs, ok)) {
 			case LV2_WORKER_ERR_UNKNOWN:
 				rv = LV2_STATE_ERR_NO_PROPERTY;
 				assert (!ok);
@@ -1066,7 +1087,7 @@ run_cfg (LV2_Handle instance, uint32_t n_samples)
 			if (!file_path || file_path->size < 1 || file_path->size > 1024) {
 				continue;
 			}
-			self->schedule->schedule_work (self->schedule->handle, lv2_atom_total_size (file_path), file_path);
+			self->schedule->schedule_work (self->schedule->handle, lv2_atom_total_size (file_path), file_path); // XXX
 		}
 	}
 
