@@ -128,6 +128,7 @@ private:
 	IRChannelConfig _irc;
 	int             _sched_policy;
 	int             _sched_priority;
+	double          _period_ns;
 	IRSettings      _ir_settings;
 
 	TimeDomainConvolver _tdc[4];

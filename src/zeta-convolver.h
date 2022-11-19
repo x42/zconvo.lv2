@@ -264,8 +264,7 @@ private:
 	void reset (uint32_t inpsize,
 	            uint32_t outsize,
 	            float**  inpbuff,
-	            float**  outbuff,
-	            bool     withsem = true);
+	            float**  outbuff);
 
 	bool start (int absprio, int policy, double period_ns);
 
@@ -389,6 +388,7 @@ public:
 	int reset (void);
 
 	int start_process (int abspri, int policy, double period_ns);
+	int restart_process (int abspri, int policy, double period_ns);
 
 	int process ();
 	int tailonly (uint32_t n_samples);
