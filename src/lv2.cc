@@ -687,22 +687,24 @@ work (LV2_Handle                  instance,
 	}
 
 	ZeroConvoLV2::Convolver::IRSettings irs;
-	const char*                         fn;
+	std::string                         fn;
 
 	size_t const irssize = sizeof (ZeroConvoLV2::Convolver::IRSettings);
 
 	const LV2_Atom* a = (const LV2_Atom*)data;
 	if (a->type == self->atom_String) {
-		fn = (const char*)(a + 1);
+		fn = std::string ((const char*)(a + 1));
+	} else if (a->type == self->atom_Path) {
+		fn = std::string ((const char*)(a + 1));
 	} else if (a->type == self->atom_Blank && a->size > irssize) {
 		uint8_t const* mp = (uint8_t const*)(a + 1);
-		fn                = (const char*)(mp + irssize);
+		fn                = std::string ((const char*)(mp + irssize), a->size - irssize);
 		memcpy (&irs, mp, irssize);
 	} else {
 		return LV2_WORKER_ERR_UNKNOWN;
 	}
 
-	return load_ir_worker (self, respond, handle, std::string (fn, a->size - irssize), irs, unused);
+	return load_ir_worker (self, respond, handle, fn, irs, unused);
 }
 
 static LV2_State_Status
