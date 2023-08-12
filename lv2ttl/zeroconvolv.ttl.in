@@ -122,6 +122,7 @@ conv:MonoToStereo
 	lv2:requiredFeature bufsz:boundedBlockLength, urid:map, opts:options, work:schedule;
 	lv2:extensionData work:interface, state:interface, opts:interface;
 	lv2:optionalFeature lv2:hardRTCapable, state:threadSafeRestore, log:log, state:mapPath, state:freePath;
+	lv2:optionalFeature <http://harrisonconsoles.com/lv2/routing#connectAllOutputs> ;
 	opts:supportedOption bufsz:maxBlockLength, bufsz:nominalBlockLength ;
 	opts:supportedOption <http://ardour.org/lv2/threads/#schedPolicy>;
 	opts:supportedOption <http://ardour.org/lv2/threads/#schedPriority>;
