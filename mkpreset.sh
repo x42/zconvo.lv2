@@ -1,5 +1,9 @@
 #!/bin/bash
 
+## IFS=$(echo -en "\n\b")
+## for file in *.wav; do FN=$(basename $file .wav); sndfile-convert -normalize -pcm24 $file ${FN}.flac ; done
+## unset IFS
+
 #UPFX="AWX_"
 #NPFX="Airwindows - "
 
@@ -21,8 +25,11 @@
 #UPFX="CCGB_"
 #NPFX="Concertgebouw - "
 
-UPFX="JEZ_"
-NPFX="JezWells - Spaces - "
+#UPFX="JEZ_"
+#NPFX="JezWells - Spaces - "
+
+UPFX="LEX470L_"
+NPFX="470L - "
 
 FULLSTATE=false
 FFTGAIN=`dirname $0`/tools/fftgain
@@ -89,6 +96,30 @@ for ir in *.flac; do
 	FILEURL=`urlencode "${ir}"`
 	URISUFFIX=`echo -n "$BN" | sed 's/[^a-zA-Z0-9-]/_/g;s/___*/_/g'`
 
+	case $BN in
+		Ambiences*)
+			COMMENT="The programs found in the Ambience group are reverberation programs designed add space without necessarily adding reverb. They are useful for a variety of tasks, and are especially well suited for post production and dialog applications, as well as adding “air” to voice and solo instruments."
+			;;
+		Effects*)
+			COMMENT="The programs found in the Effects group are not necessarily adding reverb, but recreate miscellaneous audible artifacts. They are mainly useful for creating special effects."
+			;;
+		Halls*)
+			COMMENT="The programs found in the Halls group are reverberation programs designed to emulate real concert halls and larger natural acoustical spaces. They are useful for a variety of tasks, and are especially well suited for orchestral music applications."
+			;;
+		Plates*)
+			COMMENT="The programs found in the Plates group are reverberation programs designed to emulate the sound of an analog metal plate reverb. They are useful for a variety of tasks, and are especially well suited for popular multi-track recordings and live performance applications."
+			;;
+		Rooms*)
+			COMMENT="The programs found in the Rooms group are reverberation programs designed to emulate rooms and smaller natural acoustical spaces. They are useful for a variety of tasks, and are especially well suited for post production applications and adding space to dialog and solo instruments in music mixes."
+			;;
+		Spaces*)
+			COMMENT="The programs found in the Spaces group are reverberation programs designed to emulate outdoor sounds, non-real sounds, and other very large or small acoustical spaces. They are useful for a variety of tasks, and are especially well suited for post production creating special effects."
+			;;
+		*)
+			COMMENT=""
+			;;
+	esac
+
 	cat << EOF | tee -a manifest.ttl >> presets.ttl
 
 zcpset:${UPFX}${URISUFFIX}
@@ -101,7 +132,7 @@ EOF
 
 	cat >> presets.ttl << EOF
  rdfs:label "${NPFX}${BN}";
- rdfs:comment "";
+ rdfs:comment "${COMMENT}";
  state:state [
   <http://gareus.org/oss/lv2/zeroconvolv#ir> <${FILEURL}>;
   <http://gareus.org/oss/lv2/zeroconvolv#predelay> "0"^^xsd:int ;

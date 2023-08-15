@@ -82,9 +82,11 @@ analyze (ZeroConvoLV2::SFSource const& sf)
 
 	double gain = 1.0 / (pow (ap, .3) * pow (pp, .2));
 
+#if 1
 	if (peak < 0) {
 		gain *= -1;
 	}
+#endif
 
 	fprintf (stderr, "Peak power: %.2fdB LF-average: %.2fdB | gain: %f\n", power_to_dB (pp), power_to_dB (ap), gain);
 #if 1
