@@ -68,3 +68,6 @@
 	a lv2:Parameter;
 	rdfs:label "Artificial latency to be announced to the host (inverse pre-delay, useful for FIR filters)";
 	rdfs:range atom:Int.
+
+<http://harrisonconsoles.com/lv2/routing#connectAllOutputs>
+	a lv2:Feature .
