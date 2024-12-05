@@ -693,9 +693,9 @@ work (LV2_Handle                  instance,
 
 	const LV2_Atom* a = (const LV2_Atom*)data;
 	if (a->type == self->atom_String) {
-		fn = std::string ((const char*)(a + 1));
+		fn = std::string ((const char*)(a + 1), a->size);
 	} else if (a->type == self->atom_Path) {
-		fn = std::string ((const char*)(a + 1));
+		fn = std::string ((const char*)(a + 1), a->size);
 	} else if (a->type == self->atom_Blank && a->size > irssize) {
 		uint8_t const* mp = (uint8_t const*)(a + 1);
 		fn                = std::string ((const char*)(mp + irssize), a->size - irssize);
