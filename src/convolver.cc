@@ -208,7 +208,7 @@ Convolver::reconfigure (uint32_t block_size, bool threaded)
 {
 	_convproc.stop_process ();
 	_convproc.cleanup ();
-	_convproc.set_options (0);
+	_convproc.set_options (Convproc::OPT_LATE_CONTIN);
 
 	_period_ns = 1e9 * block_size / _samplerate;
 
