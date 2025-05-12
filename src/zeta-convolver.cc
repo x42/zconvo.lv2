@@ -297,6 +297,11 @@ Convproc::restart_process (int abspri, int policy, double period_ns)
 		case ST_PROC:
 			/* OK, running - restart */
 			stop_process ();
+			/* wait for detached threads to terminate */
+			while (!check_stop ()) {
+				usleep (40000);
+				sched_yield ();
+			}
 			break;
 		default:
 			/* ST_IDLE - not configured */
