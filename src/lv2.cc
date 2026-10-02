@@ -879,6 +879,9 @@ restore (LV2_Handle                  instance,
 		/* The worker is busy, just queue file. This will be processed
 		 * when the worker triggers a work response. */
 		set_queue (self, path, irs);
+	} else if (self->clv_offline) {
+		pthread_mutex_unlock (&self->state_lock);
+		set_queue (self, path, irs);
 	} else if (thread_safe) {
 		pthread_mutex_unlock (&self->state_lock);
 		size_t const irssize = sizeof (ZeroConvoLV2::Convolver::IRSettings);
