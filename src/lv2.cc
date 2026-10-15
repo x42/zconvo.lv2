@@ -476,6 +476,8 @@ run (LV2_Handle instance, uint32_t n_samples)
 		}
 	} else if (self->chn_out == 2) {
 		assert (self->chn_in == 1);
+		copy_no_inplace_buffers (self->output[1], self->input[0], n_samples);
+
 		if (buffered) {
 			self->clv_online->run_buffered_stereo (self->output[0], self->output[1], n_samples);
 		} else {
